@@ -958,19 +958,48 @@ function fmtDate(ds) {
 }
 
 function fmtTime(ts) {
-  if (!ts || typeof ts !== 'string' || !ts.includes(':')) return '—';
-  const parts = ts.split(':');
-  const h = parseInt(parts[0]);
-  const m = parseInt(parts[1]);
-  if (isNaN(h) || isNaN(m)) return '—';
+  if (!ts) return '—';
+  ts = String(ts).trim();
+  if (!ts || ts === 'undefined') return '—';
+  // Parse to 24hr first via parseTime, then format
+  const mins = parseTimeToMins(ts);
+  if (mins === null) return '—';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
   const ap = h >= 12 ? 'PM' : 'AM';
   const hr = h % 12 || 12;
   return `${hr}:${pad(m)} ${ap}`;
 }
 
+function parseTimeToMins(ts) {
+  if (!ts) return null;
+  ts = String(ts).trim();
+  // "H:MM AM/PM" or "H:MM:SS AM/PM"
+  const ampm = ts.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (ampm) {
+    let h = parseInt(ampm[1]);
+    const m = parseInt(ampm[2]);
+    const period = ampm[3].toUpperCase();
+    if (period === 'AM' && h === 12) h = 0;
+    if (period === 'PM' && h !== 12) h += 12;
+    return h * 60 + m;
+  }
+  // "HH:MM" or "HH:MM:SS" 24hr
+  const hhmm = ts.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (hhmm) {
+    return parseInt(hhmm[1]) * 60 + parseInt(hhmm[2]);
+  }
+  // Fraction of day (Google Sheets serial)
+  const num = parseFloat(ts);
+  if (!isNaN(num) && num > 0 && num < 1) {
+    return Math.round(num * 24 * 60);
+  }
+  return null;
+}
+
 function minutesSinceMidnight(ts) {
-  const [h,m] = ts.split(':').map(Number);
-  return h * 60 + m;
+  const mins = parseTimeToMins(ts);
+  return mins !== null ? mins : 0;
 }
 
 function nowMinutes() {
