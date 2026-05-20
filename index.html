@@ -806,7 +806,7 @@ let deleteTargetId = null;
 let clockInterval = null;
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbzPeaOQwN1ajwfRsXlB5TN8I0Q3p9Wryu7l2E4AdsDR6g5k8HtBiSw1qAFvQxBO0CDBqw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzId4G2r6mHYo-X3Syt4yIg1lYLnWey2KSBR0P2noHSqNa60ufXnBJ9K-KXDaOsTYOHpA/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -818,23 +818,28 @@ async function loadData() {
     const res = await fetch(API_URL);
     const data = await res.json();
     bookings = data.map(r => {
-      // Clean date: ensure YYYY-MM-DD format
-      let date = String(r.BookingDate || '').trim();
-      if (date.includes('/')) {
-        const parts = date.split('/');
-        if (parts.length === 3) {
-          // handle DD/MM/YYYY or MM/DD/YYYY
-          date = parts[2].padStart(4,'0') + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0');
-        }
-      }
-      // Clean time: handle Google Sheets numeric serial or string HH:MM
+
+      // Clean time: handle all Google Sheets time formats
       const cleanTime = t => {
         if (!t && t !== 0) return '00:00';
         t = String(t).trim();
-        if (t.includes(':')) return t.substring(0, 5);
-        // Google Sheets stores time as fraction of day e.g. 0.574 = 13:46
+        // Already HH:MM
+        if (/^\d{1,2}:\d{2}$/.test(t)) return t.padStart(5,'0');
+        // HH:MM:SS (24hr)
+        if (/^\d{1,2}:\d{2}:\d{2}$/.test(t)) return t.substring(0,5).padStart(5,'0');
+        // H:MM:SS AM/PM e.g. "1:44:00 PM"
+        const ampm = t.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+        if (ampm) {
+          let h = parseInt(ampm[1]);
+          const m = parseInt(ampm[2]);
+          const period = ampm[3].toUpperCase();
+          if (period === 'AM' && h === 12) h = 0;
+          if (period === 'PM' && h !== 12) h += 12;
+          return pad(h) + ':' + pad(m);
+        }
+        // Google Sheets time serial (fraction of day)
         const num = parseFloat(t);
-        if (!isNaN(num)) {
+        if (!isNaN(num) && num < 1) {
           const totalMins = Math.round(num * 24 * 60);
           const h = Math.floor(totalMins / 60) % 24;
           const m = totalMins % 60;
@@ -842,12 +847,39 @@ async function loadData() {
         }
         return '00:00';
       };
+      // Clean date: handle all Google Sheets date formats
+      const cleanDate = d => {
+        if (!d) return '';
+        d = String(d).trim();
+        // Already YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+        // DD/MM/YYYY
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(d)) {
+          const p = d.split('/');
+          return p[2] + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
+        }
+        // DD-Mon-YYYY e.g. "20-May-2026"
+        const months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+        const monMatch = d.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+        if (monMatch) {
+          const mo = months[monMatch[2].toLowerCase()] || '01';
+          return monMatch[3] + '-' + mo + '-' + monMatch[1].padStart(2,'0');
+        }
+        // Google Sheets date serial
+        const num = parseFloat(d);
+        if (!isNaN(num) && num > 1000) {
+          const epoch = new Date(1899, 11, 30).getTime();
+          const dateObj = new Date(epoch + num * 86400000);
+          return dateObj.getFullYear() + '-' + pad(dateObj.getMonth()+1) + '-' + pad(dateObj.getDate());
+        }
+        return d;
+      };
       return {
         id: String(r.BookingID || '').trim(),
         room: String(r.Room || '').trim(),
         booker: String(r.BookedBy || '').trim(),
         purpose: String(r.Purpose || '').trim(),
-        date: date,
+        date: cleanDate(r.BookingDate),
         start: cleanTime(r.StartTime),
         end: cleanTime(r.EndTime),
         attendees: String(r.Attendees || '').trim()
