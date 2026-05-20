@@ -694,6 +694,14 @@
   }
   .modify-form.open { display: block; }
 
+  /* TOGGLE SWITCH */
+  .toggle-switch { position:relative; display:inline-block; width:36px; height:20px; flex-shrink:0; }
+  .toggle-switch input { opacity:0; width:0; height:0; }
+  .toggle-slider { position:absolute; cursor:pointer; inset:0; background:#ccc; border-radius:20px; transition:.2s; }
+  .toggle-slider:before { content:''; position:absolute; width:14px; height:14px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.2s; }
+  .toggle-switch input:checked + .toggle-slider { background:var(--accent); }
+  .toggle-switch input:checked + .toggle-slider:before { transform:translateX(16px); }
+
   /* NAV badge */
   .nav-pending-dot {
     display: inline-block;
@@ -802,8 +810,8 @@
           <label>Purpose</label>
           <input type="text" id="f-purpose" placeholder="e.g. Team training, Interview..." maxlength="100">
         </div>
-        <div class="form-row">
-          <div class="form-group">
+        <div class="form-row" style="align-items:center;margin-bottom:4px">
+          <div class="form-group" id="f-date-wrap">
             <label>Date</label>
             <input type="date" id="f-date" required>
           </div>
@@ -811,6 +819,28 @@
             <label>Number of attendees</label>
             <input type="number" id="f-attendees" min="1" max="200" placeholder="—">
           </div>
+        </div>
+
+        <!-- RECURRING TOGGLE -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <label class="toggle-switch">
+            <input type="checkbox" id="f-recurring" onchange="toggleRecurring()">
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="font-size:13px;font-weight:600;color:var(--text-muted)">Recurring — weekdays only</span>
+        </div>
+        <div id="recurring-fields" style="display:none;margin-bottom:8px">
+          <div class="form-row">
+            <div class="form-group">
+              <label>From Date</label>
+              <input type="date" id="f-recur-from">
+            </div>
+            <div class="form-group">
+              <label>To Date</label>
+              <input type="date" id="f-recur-to">
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:-4px;margin-bottom:4px">One booking per Mon–Fri in range.</div>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -926,7 +956,7 @@
         <input type="text" id="req-purpose" placeholder="e.g. Team Training, Interview..." maxlength="100">
       </div>
       <div class="form-row">
-        <div class="form-group">
+        <div class="form-group" id="req-date-wrap">
           <label>Date</label>
           <input type="date" id="req-date" required>
         </div>
@@ -934,6 +964,26 @@
           <label>Attendees</label>
           <input type="number" id="req-attendees" min="1" max="200" placeholder="—">
         </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <label class="toggle-switch">
+          <input type="checkbox" id="req-recurring" onchange="toggleReqRecurring()">
+          <span class="toggle-slider"></span>
+        </label>
+        <span style="font-size:13px;font-weight:600;color:var(--text-muted)">Recurring — weekdays only</span>
+      </div>
+      <div id="req-recurring-fields" style="display:none;margin-bottom:8px">
+        <div class="form-row">
+          <div class="form-group">
+            <label>From Date</label>
+            <input type="date" id="req-recur-from">
+          </div>
+          <div class="form-group">
+            <label>To Date</label>
+            <input type="date" id="req-recur-to">
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">One request per Mon–Fri in range.</div>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -1018,7 +1068,7 @@ let deleteTargetId = null;
 let clockInterval = null;
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbyjP43PL3tm30Za2y4hOOMwEF4QctnGpeNSYgStK8mcMGJ1TSoojR3dzRvwXSo7tte1-w/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxyWH1QZqz6LX2s_kqbuJLi4b4i1yiCBCvpg_GdjuoO1mL1SNS_EzUisV8Myzpjy5DYsQ/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -1478,6 +1528,11 @@ function resetForm() {
   document.getElementById('form-submit-btn').textContent = 'Book Room';
   document.getElementById('form-error').classList.remove('visible');
   document.getElementById('f-date').value = todayStr();
+  document.getElementById('f-date-wrap').style.display = '';
+  document.getElementById('f-recurring').checked = false;
+  document.getElementById('recurring-fields').style.display = 'none';
+  document.getElementById('f-recur-from').value = '';
+  document.getElementById('f-recur-to').value = '';
 }
 
 function editBooking(id) {
@@ -1504,55 +1559,90 @@ function showError(msg) {
   el.classList.add('visible');
 }
 
+function toggleRecurring() {
+  const on = document.getElementById('f-recurring').checked;
+  document.getElementById('recurring-fields').style.display = on ? '' : 'none';
+  document.getElementById('f-date-wrap').style.display = on ? 'none' : '';
+  document.getElementById('f-date').required = !on;
+}
+
 async function submitBooking(e) {
   e.preventDefault();
-  const id = document.getElementById('edit-id').value;
-  const room = document.getElementById('f-room').value;
-  const booker = document.getElementById('f-booker').value.trim();
-  const purpose = document.getElementById('f-purpose').value.trim();
-  const date = document.getElementById('f-date').value;
-  const start = document.getElementById('f-start').value;
-  const end = document.getElementById('f-end').value;
+  const id       = document.getElementById('edit-id').value;
+  const room     = document.getElementById('f-room').value;
+  const booker   = document.getElementById('f-booker').value.trim();
+  const purpose  = document.getElementById('f-purpose').value.trim();
+  const date     = document.getElementById('f-date').value;
+  const start    = document.getElementById('f-start').value;
+  const end      = document.getElementById('f-end').value;
   const attendees = document.getElementById('f-attendees').value;
+  const recurring = document.getElementById('f-recurring').checked;
 
-  if (!room || !booker || !date || !start || !end) {
+  if (!room || !booker || !start || !end) {
     showError('Please fill in all required fields.'); return;
   }
   if (minutesSinceMidnight(end) <= minutesSinceMidnight(start)) {
     showError('End time must be after start time.'); return;
   }
 
-  // Conflict check
-  const newS = minutesSinceMidnight(start);
-  const newE = minutesSinceMidnight(end);
-  const conflict = bookings.find(b => {
-    if (b.room !== room || b.date !== date) return false;
-    if (id && b.id === id) return false; // editing same booking
-    const bS = minutesSinceMidnight(b.start);
-    const bE = minutesSinceMidnight(b.end);
-    return newS < bE && newE > bS;
-  });
-  if (conflict) {
-    showError(`Conflict: ${roomName(room)} is already booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.`);
-    return;
+  // Build list of dates to book
+  let dates = [];
+  if (recurring) {
+    const from = document.getElementById('f-recur-from').value;
+    const to   = document.getElementById('f-recur-to').value;
+    if (!from || !to) { showError('Please select a From and To date for recurring bookings.'); return; }
+    if (to < from)    { showError('To date must be after From date.'); return; }
+    const cur = new Date(from + 'T00:00:00');
+    const end2 = new Date(to + 'T00:00:00');
+    while (cur <= end2) {
+      const day = cur.getDay();
+      if (day !== 0 && day !== 6) { // weekdays only
+        dates.push(cur.getFullYear() + '-' + pad(cur.getMonth()+1) + '-' + pad(cur.getDate()));
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (dates.length === 0) { showError('No weekdays found in the selected range.'); return; }
+    if (dates.length > 60)  { showError('Range too large — max 60 weekdays at once.'); return; }
+  } else {
+    if (!date) { showError('Please select a date.'); return; }
+    dates = [date];
+  }
+
+  // Conflict check for each date
+  const newS = minutesSinceMidnight(start), newE = minutesSinceMidnight(end);
+  for (const d of dates) {
+    const conflict = bookings.find(b => {
+      if (b.room !== room || b.date !== d) return false;
+      if (id && b.id === id) return false;
+      return newS < minutesSinceMidnight(b.end) && newE > minutesSinceMidnight(b.start);
+    });
+    if (conflict) {
+      showError(`Conflict on ${fmtDate(d)}: already booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.`);
+      return;
+    }
   }
 
   document.getElementById('form-error').classList.remove('visible');
 
-  const booking = { id: id || genId(), room, booker, purpose, date, start, end, attendees: attendees || '' };
   try {
     showLoadingOverlay(true);
-    if (id) {
+    if (id && !recurring) {
+      // Edit single booking
+      const booking = { id, room, booker, purpose, date: dates[0], start, end, attendees: attendees || '', status: 'Confirmed' };
       const idx = bookings.findIndex(b => b.id === id);
       if (idx !== -1) bookings[idx] = booking;
       await apiUpdate(booking);
       toast('Booking updated.');
     } else {
-      bookings.push(booking);
-      await apiCreate(booking);
-      toast('Room booked successfully.');
+      // Create one or many
+      for (const d of dates) {
+        const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Confirmed' };
+        bookings.push(booking);
+        await apiCreate(booking);
+      }
+      toast(dates.length > 1 ? `${dates.length} recurring bookings created.` : 'Room booked successfully.');
     }
-  } catch(e) {
+  } catch(err) {
     toast('Error saving booking. Try again.', true);
   } finally {
     showLoadingOverlay(false);
@@ -1704,7 +1794,6 @@ let reqSubmitting = false;
 let rejectTargetId = null;
 
 function openRequestModal(roomId) {
-  // Populate room select
   const sel = document.getElementById('req-room');
   sel.innerHTML = '<option value="">Select a room...</option>';
   for (const r of ROOMS) sel.innerHTML += `<option value="${r.id}">${r.name} (${r.floor})</option>`;
@@ -1715,7 +1804,11 @@ function openRequestModal(roomId) {
   document.getElementById('req-error').classList.remove('visible');
   document.getElementById('req-form-view').style.display = '';
   document.getElementById('req-confirm-view').style.display = 'none';
-  ['req-booker','req-purpose','req-start','req-end','req-attendees'].forEach(id => document.getElementById(id).value = '');
+  ['req-booker','req-purpose','req-start','req-end','req-attendees','req-recur-from','req-recur-to'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('req-recurring').checked = false;
+  document.getElementById('req-recurring-fields').style.display = 'none';
+  document.getElementById('req-date-wrap').style.display = '';
+  document.getElementById('req-date').required = true;
   reqSubmitting = false;
   document.getElementById('request-modal').style.display = 'flex';
 }
@@ -1724,17 +1817,25 @@ function closeRequestModal() {
   document.getElementById('request-modal').style.display = 'none';
 }
 
-async function submitRequest() {
-  const room = document.getElementById('req-room').value;
-  const booker = document.getElementById('req-booker').value.trim();
-  const purpose = document.getElementById('req-purpose').value.trim();
-  const date = document.getElementById('req-date').value;
-  const start = document.getElementById('req-start').value;
-  const end = document.getElementById('req-end').value;
-  const attendees = document.getElementById('req-attendees').value;
-  const errEl = document.getElementById('req-error');
+function toggleReqRecurring() {
+  const on = document.getElementById('req-recurring').checked;
+  document.getElementById('req-recurring-fields').style.display = on ? '' : 'none';
+  document.getElementById('req-date-wrap').style.display = on ? 'none' : '';
+  document.getElementById('req-date').required = !on;
+}
 
-  if (!room || !booker || !date || !start || !end) {
+async function submitRequest() {
+  const room      = document.getElementById('req-room').value;
+  const booker    = document.getElementById('req-booker').value.trim();
+  const purpose   = document.getElementById('req-purpose').value.trim();
+  const date      = document.getElementById('req-date').value;
+  const start     = document.getElementById('req-start').value;
+  const end       = document.getElementById('req-end').value;
+  const attendees = document.getElementById('req-attendees').value;
+  const recurring = document.getElementById('req-recurring').checked;
+  const errEl     = document.getElementById('req-error');
+
+  if (!room || !booker || !start || !end) {
     errEl.textContent = 'Please fill in all required fields.';
     errEl.classList.add('visible'); return;
   }
@@ -1742,14 +1843,38 @@ async function submitRequest() {
     errEl.textContent = 'End time must be after start time.';
     errEl.classList.add('visible'); return;
   }
+
+  // Build dates list
+  let dates = [];
+  if (recurring) {
+    const from = document.getElementById('req-recur-from').value;
+    const to   = document.getElementById('req-recur-to').value;
+    if (!from || !to) { errEl.textContent = 'Please select From and To dates.'; errEl.classList.add('visible'); return; }
+    if (to < from)    { errEl.textContent = 'To date must be after From date.'; errEl.classList.add('visible'); return; }
+    const cur = new Date(from + 'T00:00:00');
+    const end2 = new Date(to + 'T00:00:00');
+    while (cur <= end2) {
+      const day = cur.getDay();
+      if (day !== 0 && day !== 6) dates.push(cur.getFullYear() + '-' + pad(cur.getMonth()+1) + '-' + pad(cur.getDate()));
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (dates.length === 0) { errEl.textContent = 'No weekdays in selected range.'; errEl.classList.add('visible'); return; }
+    if (dates.length > 60)  { errEl.textContent = 'Range too large — max 60 weekdays.'; errEl.classList.add('visible'); return; }
+  } else {
+    if (!date) { errEl.textContent = 'Please select a date.'; errEl.classList.add('visible'); return; }
+    dates = [date];
+  }
+
   errEl.classList.remove('visible');
   reqSubmitting = true;
 
-  const booking = { id: genId(), room, booker, purpose, date, start, end, attendees: attendees || '', status: 'Pending' };
   try {
     showLoadingOverlay(true);
-    await apiCreate(booking);
-    bookings.push(booking);
+    for (const d of dates) {
+      const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Pending' };
+      await apiCreate(booking);
+      bookings.push(booking);
+    }
     document.getElementById('req-form-view').style.display = 'none';
     document.getElementById('req-confirm-view').style.display = '';
     updatePendingDot();
