@@ -806,7 +806,7 @@ let deleteTargetId = null;
 let clockInterval = null;
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbzId4G2r6mHYo-X3Syt4yIg1lYLnWey2KSBR0P2noHSqNa60ufXnBJ9K-KXDaOsTYOHpA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwq-szGcEqLdTDA9x2JKuN1NW8w8Ugwkr3j7jjd69aS5YwKQaVJzAlpg-WSt-I03C_VJw/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -958,7 +958,11 @@ function fmtDate(ds) {
 }
 
 function fmtTime(ts) {
-  const [h,m] = ts.split(':').map(Number);
+  if (!ts || typeof ts !== 'string' || !ts.includes(':')) return '—';
+  const parts = ts.split(':');
+  const h = parseInt(parts[0]);
+  const m = parseInt(parts[1]);
+  if (isNaN(h) || isNaN(m)) return '—';
   const ap = h >= 12 ? 'PM' : 'AM';
   const hr = h % 12 || 12;
   return `${hr}:${pad(m)} ${ap}`;
