@@ -49,16 +49,7 @@ Sheet tab name must be **`Sheet1`** (or update `SHEET_NAME` in `Code.gs`).
    - Who has access: **Anyone**
 5. Copy the `/exec` URL
 
-### 3. index.html
-
-Update these two lines near the top of the `<script>` section:
-
-```javascript
-const ADMIN_PASSWORD = 'your-password-here';
-const API_URL = 'https://script.google.com/macros/s/YOUR_DEPLOYMENT_ID/exec';
-```
-
-### 4. Deploy
+### 3. Deploy
 
 Push `index.html` to GitHub and enable **GitHub Pages** on the repo.
 
