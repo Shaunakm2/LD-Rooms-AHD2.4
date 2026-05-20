@@ -808,7 +808,7 @@
             <input type="date" id="f-date" required>
           </div>
           <div class="form-group">
-            <label># Attendees</label>
+            <label>Number of attendees</label>
             <input type="number" id="f-attendees" min="1" max="200" placeholder="—">
           </div>
         </div>
@@ -1018,7 +1018,7 @@ let deleteTargetId = null;
 let clockInterval = null;
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbxyWH1QZqz6LX2s_kqbuJLi4b4i1yiCBCvpg_GdjuoO1mL1SNS_EzUisV8Myzpjy5DYsQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyjP43PL3tm30Za2y4hOOMwEF4QctnGpeNSYgStK8mcMGJ1TSoojR3dzRvwXSo7tte1-w/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -1065,10 +1065,17 @@ async function loadData() {
         d = String(d).trim();
         // Already YYYY-MM-DD
         if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+        // ISO datetime e.g. "2026-05-20T00:00:00.000Z"
+        if (/^\d{4}-\d{2}-\d{2}T/.test(d)) return d.substring(0, 10);
         // DD/MM/YYYY
         if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(d)) {
           const p = d.split('/');
           return p[2] + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
+        }
+        // MM/DD/YYYY (US format from Sheets)
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(d)) {
+          const p = d.split('/');
+          return p[2] + '-' + p[0].padStart(2,'0') + '-' + p[1].padStart(2,'0');
         }
         // DD-Mon-YYYY e.g. "20-May-2026"
         const months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
