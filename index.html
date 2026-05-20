@@ -575,6 +575,135 @@
   }
   .room-card { cursor: pointer; }
 
+  /* REQUEST BOOKING BUTTON */
+  .btn-request {
+    margin-top: 12px;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid #C2D9D1;
+    transition: all 0.15s;
+    display: block;
+  }
+  .btn-request:hover { background: #D0E8E0; }
+
+  /* REQUEST MODAL */
+  .modal-box-lg {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    width: 480px;
+    max-width: calc(100vw - 2rem);
+    border: 1px solid var(--border);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .confirm-box {
+    text-align: center;
+    padding: 1.5rem 0 0.5rem;
+  }
+  .confirm-icon {
+    width: 52px; height: 52px;
+    background: var(--ok-light);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 24px;
+  }
+  .confirm-box h3 { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .confirm-box p { font-size: 14px; color: var(--text-muted); }
+
+  /* PENDING REQUESTS SECTION */
+  .pending-section {
+    margin-bottom: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .pending-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--warn-light);
+  }
+  .pending-header h3 {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--warn);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pending-badge {
+    background: var(--warn);
+    color: white;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    min-width: 20px;
+    text-align: center;
+  }
+  .pending-item {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .pending-item:last-child { border-bottom: none; }
+  .pending-item-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .pending-room-name {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .pending-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .pending-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .btn-approve { background: var(--ok-light); color: var(--ok); border: 1px solid #C2D9D1; }
+  .btn-approve:hover { background: #D0E8E0; }
+  .btn-modify { background: var(--warn-light); color: var(--warn); border: 1px solid #F0D9B0; }
+  .btn-modify:hover { background: #FAE8CC; }
+  .btn-reject { background: var(--danger-light); color: var(--danger); border: 1px solid #E8BFBF; }
+  .btn-reject:hover { background: #F5D5D5; }
+
+  /* MODIFY MODAL inline expand */
+  .modify-form {
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-top: 10px;
+    border: 1px solid var(--border-light);
+    display: none;
+  }
+  .modify-form.open { display: block; }
+
+  /* NAV badge */
+  .nav-pending-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: #C07D00;
+    border-radius: 50%;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
   /* PRINT */
   @media print {
     nav, .nav-tabs, #admin-btn { display: none; }
@@ -623,7 +752,7 @@
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('status')">Room Status</button>
-    <button class="nav-tab" id="admin-btn" onclick="requireAdmin()">Admin Panel</button>
+    <button class="nav-tab" id="admin-btn" onclick="requireAdmin()">Admin Panel<span class="nav-pending-dot" id="nav-pending-dot" style="display:none"></span></button>
   </div>
   <div class="nav-right">
     <div id="clock">—</div>
@@ -710,6 +839,14 @@
 
     <!-- Main: Bookings Table -->
     <div class="admin-main">
+      <!-- PENDING REQUESTS -->
+      <div id="pending-section" class="pending-section" style="display:none">
+        <div class="pending-header">
+          <h3>⏳ Pending Requests <span class="pending-badge" id="pending-count">0</span></h3>
+        </div>
+        <div id="pending-list"></div>
+      </div>
+
       <div class="bookings-header">
         <h2>All Bookings</h2>
         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
@@ -768,6 +905,81 @@
   </div>
 </div>
 
+<!-- REQUEST BOOKING MODAL -->
+<div class="modal-overlay" id="request-modal" style="display:none;" onclick="if(event.target===this&&!reqSubmitting)closeRequestModal()">
+  <div class="modal-box-lg">
+    <div id="req-form-view">
+      <div class="modal-title">Request a Booking</div>
+      <div class="modal-sub" id="req-modal-sub">Fill in your details and an admin will confirm your booking.</div>
+      <div class="form-group">
+        <label>Room</label>
+        <select id="req-room" required>
+          <option value="">Select a room...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Your Name / Team</label>
+        <input type="text" id="req-booker" placeholder="e.g. Priya Sharma" maxlength="80" required>
+      </div>
+      <div class="form-group">
+        <label>Purpose</label>
+        <input type="text" id="req-purpose" placeholder="e.g. Team Training, Interview..." maxlength="100">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Date</label>
+          <input type="date" id="req-date" required>
+        </div>
+        <div class="form-group">
+          <label>Attendees</label>
+          <input type="number" id="req-attendees" min="1" max="200" placeholder="—">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Start Time</label>
+          <input type="time" id="req-start" required>
+        </div>
+        <div class="form-group">
+          <label>End Time</label>
+          <input type="time" id="req-end" required>
+        </div>
+      </div>
+      <div class="form-error" id="req-error"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeRequestModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitRequest()">Submit Request</button>
+      </div>
+    </div>
+    <div id="req-confirm-view" style="display:none">
+      <div class="confirm-box">
+        <div class="confirm-icon">✅</div>
+        <h3>Request Submitted!</h3>
+        <p>Your booking request has been sent.<br>An admin will review and confirm it shortly.</p>
+        <div class="modal-actions" style="justify-content:center;margin-top:1.5rem">
+          <button class="btn btn-primary" onclick="closeRequestModal()">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REJECT MODAL -->
+<div class="modal-overlay" id="reject-modal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Reject Request?</div>
+    <div class="modal-sub" id="reject-modal-sub">This request will be removed from pending.</div>
+    <div class="form-group" style="margin-top:0.5rem">
+      <label>Reason (optional)</label>
+      <input type="text" id="reject-reason" placeholder="e.g. Slot unavailable" maxlength="120">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('reject-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmReject()">Reject</button>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE CONFIRM MODAL -->
 <div class="modal-overlay" id="delete-modal" style="display:none;">
   <div class="modal-box">
@@ -806,7 +1018,7 @@ let deleteTargetId = null;
 let clockInterval = null;
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbwq-szGcEqLdTDA9x2JKuN1NW8w8Ugwkr3j7jjd69aS5YwKQaVJzAlpg-WSt-I03C_VJw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxyWH1QZqz6LX2s_kqbuJLi4b4i1yiCBCvpg_GdjuoO1mL1SNS_EzUisV8Myzpjy5DYsQ/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -882,7 +1094,8 @@ async function loadData() {
         date: cleanDate(r.BookingDate),
         start: cleanTime(r.StartTime),
         end: cleanTime(r.EndTime),
-        attendees: String(r.Attendees || '').trim()
+        attendees: String(r.Attendees || '').trim(),
+        status: String(r.Status || 'Confirmed').trim() // default legacy rows to Confirmed
       };
     });
   } catch(e) {
@@ -906,8 +1119,16 @@ async function apiCreate(b) {
       BookingDate: b.date,
       StartTime: b.start,
       EndTime: b.end,
-      Attendees: b.attendees || ''
+      Attendees: b.attendees || '',
+      Status: b.status || 'Confirmed'
     })
+  });
+}
+
+async function apiUpdateStatus(id, status) {
+  await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'updateStatus', BookingID: id, Status: status })
   });
 }
 
@@ -1016,7 +1237,8 @@ function roomName(id) {
 function getRoomStatus(roomId) {
   const today = todayStr();
   const now = nowMinutes();
-  const todayBookings = bookings.filter(b => b.room === roomId && b.date === today);
+  // Only confirmed bookings show on status page
+  const todayBookings = bookings.filter(b => b.room === roomId && b.date === today && (b.status === 'Confirmed' || !b.status));
   todayBookings.sort((a,b) => minutesSinceMidnight(a.start) - minutesSinceMidnight(b.start));
 
   // Find active booking
@@ -1116,8 +1338,8 @@ function renderStatusGrid() {
       </div>`;
     }
 
-    html += `<div class="room-card ${cardClass}" onclick="openSchedModal('${room.id}')" title="Click to view 30-day schedule">
-      <div class="room-card-top">
+    html += `<div class="room-card ${cardClass}">
+      <div class="room-card-top" onclick="openSchedModal('${room.id}')" title="Click to view 30-day schedule" style="cursor:pointer">
         <div>
           <div class="room-name">${escHtml(room.name)}</div>
           <div class="room-floor">${escHtml(room.floor)}</div>
@@ -1125,6 +1347,7 @@ function renderStatusGrid() {
         <span class="status-badge ${badgeClass}">${badgeText}</span>
       </div>
       ${bodyHtml}
+      <button class="btn-request" onclick="openRequestModal('${room.id}')">+ Request a Booking</button>
     </div>`;
   }
 
@@ -1177,7 +1400,11 @@ function renderTable() {
     const isToday = b.date === today;
     const s = minutesSinceMidnight(b.start), e = minutesSinceMidnight(b.end);
     let statusBadge;
-    if (b.date < today || (isToday && e <= now)) {
+    if (b.status === 'Pending') {
+      statusBadge = `<span class="status-badge" style="background:var(--warn-light);color:var(--warn)">Pending</span>`;
+    } else if (b.status === 'Rejected') {
+      statusBadge = `<span class="status-badge" style="background:var(--danger-light);color:var(--danger)">Rejected</span>`;
+    } else if (b.date < today || (isToday && e <= now)) {
       statusBadge = `<span class="status-badge" style="background:#F0EDE6;color:var(--text-muted)">Past</span>`;
     } else if (isToday && now >= s && now < e) {
       statusBadge = `<span class="status-badge badge-occupied">Active</span>`;
@@ -1403,6 +1630,7 @@ function showPage(name) {
     document.querySelectorAll('.nav-tab')[1].classList.add('active');
     renderTable();
     renderActiveNow();
+    renderPendingRequests();
     resetForm();
   }
 }
@@ -1464,22 +1692,206 @@ function seedSampleData() {
   saveData();
 }
 
+// ===== REQUEST BOOKING (Public) =====
+let reqSubmitting = false;
+let rejectTargetId = null;
+
+function openRequestModal(roomId) {
+  // Populate room select
+  const sel = document.getElementById('req-room');
+  sel.innerHTML = '<option value="">Select a room...</option>';
+  for (const r of ROOMS) sel.innerHTML += `<option value="${r.id}">${r.name} (${r.floor})</option>`;
+  if (roomId) sel.value = roomId;
+
+  document.getElementById('req-date').value = todayStr();
+  document.getElementById('req-error').textContent = '';
+  document.getElementById('req-error').classList.remove('visible');
+  document.getElementById('req-form-view').style.display = '';
+  document.getElementById('req-confirm-view').style.display = 'none';
+  ['req-booker','req-purpose','req-start','req-end','req-attendees'].forEach(id => document.getElementById(id).value = '');
+  reqSubmitting = false;
+  document.getElementById('request-modal').style.display = 'flex';
+}
+
+function closeRequestModal() {
+  document.getElementById('request-modal').style.display = 'none';
+}
+
+async function submitRequest() {
+  const room = document.getElementById('req-room').value;
+  const booker = document.getElementById('req-booker').value.trim();
+  const purpose = document.getElementById('req-purpose').value.trim();
+  const date = document.getElementById('req-date').value;
+  const start = document.getElementById('req-start').value;
+  const end = document.getElementById('req-end').value;
+  const attendees = document.getElementById('req-attendees').value;
+  const errEl = document.getElementById('req-error');
+
+  if (!room || !booker || !date || !start || !end) {
+    errEl.textContent = 'Please fill in all required fields.';
+    errEl.classList.add('visible'); return;
+  }
+  if (minutesSinceMidnight(end) <= minutesSinceMidnight(start)) {
+    errEl.textContent = 'End time must be after start time.';
+    errEl.classList.add('visible'); return;
+  }
+  errEl.classList.remove('visible');
+  reqSubmitting = true;
+
+  const booking = { id: genId(), room, booker, purpose, date, start, end, attendees: attendees || '', status: 'Pending' };
+  try {
+    showLoadingOverlay(true);
+    await apiCreate(booking);
+    bookings.push(booking);
+    document.getElementById('req-form-view').style.display = 'none';
+    document.getElementById('req-confirm-view').style.display = '';
+    updatePendingDot();
+  } catch(e) {
+    errEl.textContent = 'Error submitting request. Please try again.';
+    errEl.classList.add('visible');
+    reqSubmitting = false;
+  } finally {
+    showLoadingOverlay(false);
+  }
+}
+
+// ===== PENDING REQUESTS (Admin) =====
+function updatePendingDot() {
+  const count = bookings.filter(b => b.status === 'Pending').length;
+  document.getElementById('nav-pending-dot').style.display = count > 0 ? '' : 'none';
+}
+
+function renderPendingRequests() {
+  const pending = bookings.filter(b => b.status === 'Pending');
+  const section = document.getElementById('pending-section');
+  const list = document.getElementById('pending-list');
+  document.getElementById('pending-count').textContent = pending.length;
+
+  if (pending.length === 0) {
+    section.style.display = 'none';
+    updatePendingDot();
+    return;
+  }
+  section.style.display = '';
+  updatePendingDot();
+
+  list.innerHTML = pending.sort((a,b) => (a.date+a.start) < (b.date+b.start) ? -1 : 1).map(b => `
+    <div class="pending-item" id="pending-item-${b.id}">
+      <div class="pending-item-top">
+        <div>
+          <div class="pending-room-name">${escHtml(roomName(b.room))}</div>
+          <div class="pending-meta">${escHtml(b.booker)}${b.purpose ? ' &middot; ' + escHtml(b.purpose) : ''}</div>
+          <div class="pending-meta">${fmtDate(b.date)} &middot; ${fmtTime(b.start)} – ${fmtTime(b.end)}${b.attendees ? ' &middot; ' + b.attendees + ' attendees' : ''}</div>
+        </div>
+      </div>
+      <div class="pending-actions">
+        <button class="btn btn-sm btn-approve" onclick="approvePending('${b.id}')">✅ Approve</button>
+        <button class="btn btn-sm btn-modify" onclick="toggleModifyForm('${b.id}')">✏️ Modify & Approve</button>
+        <button class="btn btn-sm btn-reject" onclick="openRejectModal('${b.id}')">❌ Reject</button>
+      </div>
+      <div class="modify-form" id="modify-form-${b.id}">
+        <div class="form-row">
+          <div class="form-group"><label>Date</label><input type="date" id="mod-date-${b.id}" value="${b.date}"></div>
+          <div class="form-group"><label>Attendees</label><input type="number" id="mod-att-${b.id}" value="${b.attendees||''}" min="1" max="200" placeholder="—"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Start Time</label><input type="time" id="mod-start-${b.id}" value="${b.start}"></div>
+          <div class="form-group"><label>End Time</label><input type="time" id="mod-end-${b.id}" value="${b.end}"></div>
+        </div>
+        <div class="flex-gap" style="margin-top:8px">
+          <button class="btn btn-sm btn-approve" onclick="modifyAndApprove('${b.id}')">Confirm & Approve</button>
+          <button class="btn btn-sm btn-ghost" onclick="toggleModifyForm('${b.id}')">Cancel</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleModifyForm(id) {
+  const f = document.getElementById('modify-form-' + id);
+  f.classList.toggle('open');
+}
+
+async function approvePending(id) {
+  const idx = bookings.findIndex(b => b.id === id);
+  if (idx === -1) return;
+  try {
+    showLoadingOverlay(true);
+    bookings[idx].status = 'Confirmed';
+    await apiUpdateStatus(id, 'Confirmed');
+    toast('Booking approved ✅');
+  } catch(e) { toast('Error approving booking.', true); }
+  finally { showLoadingOverlay(false); }
+  renderPendingRequests(); renderTable(); renderStatusGrid();
+}
+
+async function modifyAndApprove(id) {
+  const idx = bookings.findIndex(b => b.id === id);
+  if (idx === -1) return;
+  const date = document.getElementById('mod-date-' + id).value;
+  const start = document.getElementById('mod-start-' + id).value;
+  const end = document.getElementById('mod-end-' + id).value;
+  const attendees = document.getElementById('mod-att-' + id).value;
+  if (!date || !start || !end) { toast('Please fill in all fields.', true); return; }
+  if (minutesSinceMidnight(end) <= minutesSinceMidnight(start)) { toast('End time must be after start time.', true); return; }
+  const b = { ...bookings[idx], date, start, end, attendees: attendees||'', status: 'Confirmed' };
+  try {
+    showLoadingOverlay(true);
+    bookings[idx] = b;
+    await fetch(API_URL, { method: 'POST', body: JSON.stringify({
+      action: 'update', BookingID: b.id, Room: b.room, BookedBy: b.booker,
+      Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start,
+      EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed'
+    })});
+    toast('Booking modified & approved ✅');
+  } catch(e) { toast('Error updating booking.', true); }
+  finally { showLoadingOverlay(false); }
+  renderPendingRequests(); renderTable(); renderStatusGrid();
+}
+
+function openRejectModal(id) {
+  rejectTargetId = id;
+  const b = bookings.find(x => x.id === id);
+  document.getElementById('reject-modal-sub').textContent =
+    b ? `Reject booking for ${roomName(b.room)} by ${b.booker} on ${fmtDate(b.date)}?` : 'This request will be removed.';
+  document.getElementById('reject-reason').value = '';
+  document.getElementById('reject-modal').style.display = 'flex';
+}
+
+async function confirmReject() {
+  if (!rejectTargetId) return;
+  const id = rejectTargetId; rejectTargetId = null;
+  document.getElementById('reject-modal').style.display = 'none';
+  try {
+    showLoadingOverlay(true);
+    const idx = bookings.findIndex(b => b.id === id);
+    if (idx !== -1) bookings[idx].status = 'Rejected';
+    await apiUpdateStatus(id, 'Rejected');
+    toast('Request rejected.');
+  } catch(e) { toast('Error rejecting request.', true); }
+  finally { showLoadingOverlay(false); }
+  renderPendingRequests(); renderTable(); renderStatusGrid();
+}
+
 // ===== INIT =====
 async function init() {
   populateRoomSelects();
   document.getElementById('f-date').value = todayStr();
   updateClock();
   await loadData();
+  updatePendingDot();
   renderStatusGrid();
   setInterval(async () => {
     updateClock();
     await loadData();
+    updatePendingDot();
     if (document.getElementById('page-status').classList.contains('active')) {
       renderStatusGrid();
     }
     if (document.getElementById('page-admin').classList.contains('active')) {
       renderTable();
       renderActiveNow();
+      renderPendingRequests();
     }
   }, 30000);
 }
@@ -1506,7 +1918,7 @@ function openSchedModal(roomId) {
     const isWeekend = d.getDay() === 0 || d.getDay() === 6;
 
     const dayBookings = bookings
-      .filter(b => b.room === roomId && b.date === ds)
+      .filter(b => b.room === roomId && b.date === ds && (b.status === 'Confirmed' || !b.status))
       .sort((a, b) => minutesSinceMidnight(a.start) - minutesSinceMidnight(b.start));
 
     let dayHtml = '';
