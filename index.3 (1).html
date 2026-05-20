@@ -1,0 +1,2159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Room Booking — Knowledge Centre</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F2EC;
+    --surface: #FEFCF8;
+    --surface2: #EFECE4;
+    --border: #D8D4CA;
+    --border-light: #E8E4DC;
+    --text: #1A1916;
+    --text-muted: #6B6860;
+    --text-faint: #9B9890;
+    --accent: #1E4A3C;
+    --accent-light: #E2EDE9;
+    --accent-mid: #2E6B56;
+    --danger: #8B2020;
+    --danger-light: #FAEAEA;
+    --warn: #7A4A00;
+    --warn-light: #FDF3E3;
+    --ok: #1E4A3C;
+    --ok-light: #E2EDE9;
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --radius: 10px;
+    --radius-lg: 16px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 15px;
+  }
+
+  /* NAV */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 64px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .nav-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .nav-logo {
+    width: 36px; height: 36px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white;
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+  .nav-title {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+  .nav-sub { font-size: 12px; color: var(--text-muted); }
+  .nav-tabs {
+    display: flex;
+    gap: 4px;
+  }
+  .nav-tab {
+    padding: 8px 18px;
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    background: none;
+    color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .nav-tab:hover { background: var(--surface2); color: var(--text); }
+  .nav-tab.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .nav-right { display: flex; align-items: center; gap: 10px; }
+  #clock {
+    font-family: var(--font-display);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    min-width: 90px;
+    text-align: right;
+  }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* STATUS PAGE */
+  .status-header {
+    padding: 2.5rem 2rem 1.5rem;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .status-header h1 {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+  }
+  .status-header p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
+  .summary-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .pill {
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .pill-ok { background: var(--ok-light); color: var(--ok); }
+  .pill-busy { background: var(--danger-light); color: var(--danger); }
+  .pill-soon { background: var(--warn-light); color: var(--warn); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  .rooms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+    padding: 0 2rem 3rem;
+  }
+
+  .room-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    transition: box-shadow 0.2s, transform 0.2s;
+    cursor: default;
+    position: relative;
+    overflow: hidden;
+  }
+  .room-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: translateY(-1px); }
+  .room-card.occupied { border-left: 4px solid #C0392B; }
+  .room-card.free { border-left: 4px solid #1E4A3C; }
+  .room-card.ending-soon { border-left: 4px solid #C07D00; }
+
+  .room-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .room-name {
+    font-family: var(--font-display);
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    line-height: 1.3;
+  }
+  .room-floor {
+    font-size: 11px;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-top: 2px;
+  }
+  .status-badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .badge-free { background: var(--ok-light); color: var(--ok); }
+  .badge-occupied { background: var(--danger-light); color: var(--danger); }
+  .badge-soon { background: var(--warn-light); color: var(--warn); }
+
+  .room-info-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .room-info-row svg { flex-shrink: 0; opacity: 0.5; }
+  .room-booker { color: var(--text); font-weight: 500; }
+  .room-time-bar {
+    margin-top: 14px;
+    height: 4px;
+    background: var(--border-light);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .room-time-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: #C0392B;
+    transition: width 0.5s ease;
+  }
+  .room-time-fill.warn { background: #C07D00; }
+  .room-time-fill.free { background: var(--accent); }
+  .room-time-label {
+    font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 5px;
+    text-align: right;
+  }
+
+  .next-booking-note {
+    margin-top: 10px;
+    padding: 8px 10px;
+    background: var(--bg);
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+  .next-booking-note strong { color: var(--text); }
+
+  /* ADMIN PAGE */
+  .admin-layout {
+    display: grid;
+    grid-template-columns: 340px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 64px);
+  }
+  .admin-sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem;
+    overflow-y: auto;
+  }
+  .admin-main {
+    padding: 1.5rem 2rem;
+    overflow-y: auto;
+  }
+  .admin-sidebar h2, .admin-main h2 {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    margin-bottom: 1rem;
+  }
+
+  /* FORM */
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+  .form-group input:focus,
+  .form-group select:focus,
+  .form-group textarea:focus {
+    border-color: var(--accent-mid);
+    box-shadow: 0 0 0 3px rgba(30,74,60,0.1);
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn {
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+  .btn-primary:hover { background: var(--accent-mid); }
+  .btn-danger {
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: #E8BFBF;
+  }
+  .btn-danger:hover { background: #F5D5D5; }
+  .btn-ghost {
+    background: none;
+    color: var(--text-muted);
+    border-color: var(--border);
+  }
+  .btn-ghost:hover { background: var(--surface2); color: var(--text); }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+  .btn-full { width: 100%; }
+  .form-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .form-error { font-size: 12px; color: var(--danger); margin-top: 4px; display: none; }
+  .form-error.visible { display: block; }
+
+  /* BOOKINGS TABLE */
+  .bookings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .search-input-wrap {
+    position: relative;
+  }
+  .search-input-wrap input {
+    padding-left: 32px;
+    width: 220px;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+    padding-top: 8px; padding-bottom: 8px;
+  }
+  .search-icon {
+    position: absolute;
+    left: 10px; top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.4;
+    pointer-events: none;
+  }
+  .table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--surface2); }
+  th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--text-muted);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 12px 14px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg); }
+  .td-room { font-weight: 500; }
+  .td-actions { display: flex; gap: 6px; }
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+  .empty-state svg { opacity: 0.2; margin-bottom: 12px; }
+
+  /* MODAL / LOGIN */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(20,18,14,0.6);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+  }
+  .modal-box {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    width: 400px;
+    max-width: calc(100vw - 2rem);
+    border: 1px solid var(--border);
+  }
+  .modal-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  .modal-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 1.5rem; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.5rem; }
+
+  /* TOAST */
+  .toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .toast {
+    background: var(--text);
+    color: var(--surface);
+    padding: 12px 18px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 500;
+    animation: toastIn 0.2s ease, toastOut 0.3s ease 2.7s forwards;
+    max-width: 300px;
+  }
+  .toast.toast-err { background: var(--danger); }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+
+  /* CONFLICT INDICATOR */
+  .conflict-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    background: var(--danger-light);
+    color: var(--danger);
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-weight: 500;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .admin-layout { grid-template-columns: 1fr; }
+    .admin-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    nav { padding: 0 1rem; }
+    .nav-sub { display: none; }
+    .rooms-grid { padding: 0 1rem 2rem; }
+    .status-header { padding: 1.5rem 1rem 1rem; }
+  }
+
+
+  /* SCHEDULE MODAL */
+  .sched-modal-box {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 0;
+    width: 680px;
+    max-width: calc(100vw - 2rem);
+    max-height: 80vh;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sched-modal-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .sched-modal-header h2 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .sched-modal-header p { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+  .sched-close {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  .sched-close:hover { background: var(--surface2); }
+  .sched-modal-body {
+    overflow-y: auto;
+    padding: 1.25rem 1.5rem;
+    flex: 1;
+  }
+  .sched-day-group { margin-bottom: 1.25rem; }
+  .sched-day-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .sched-day-label.today-label { color: var(--accent); }
+  .sched-slot {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    margin-bottom: 4px;
+    font-size: 13px;
+  }
+  .sched-slot.booked { background: var(--danger-light); }
+  .sched-slot.free-slot { background: var(--ok-light); }
+  .sched-slot-time {
+    font-weight: 600;
+    min-width: 130px;
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  .sched-slot.booked .sched-slot-time { color: var(--danger); }
+  .sched-slot.free-slot .sched-slot-time { color: var(--ok); }
+  .sched-slot-info { flex: 1; }
+  .sched-slot-booker { font-weight: 500; color: var(--text); }
+  .sched-slot-purpose { color: var(--text-muted); font-size: 12px; }
+  .sched-no-bookings {
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--text-faint);
+    font-style: italic;
+  }
+  .sched-free-all {
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--ok);
+    background: var(--ok-light);
+    border-radius: 8px;
+  }
+  .room-card { cursor: pointer; }
+
+  /* REQUEST BOOKING BUTTON */
+  .btn-request {
+    margin-top: 12px;
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    background: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid #C2D9D1;
+    transition: all 0.15s;
+    display: block;
+  }
+  .btn-request:hover { background: #D0E8E0; }
+
+  /* REQUEST MODAL */
+  .modal-box-lg {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 2rem;
+    width: 480px;
+    max-width: calc(100vw - 2rem);
+    border: 1px solid var(--border);
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .confirm-box {
+    text-align: center;
+    padding: 1.5rem 0 0.5rem;
+  }
+  .confirm-icon {
+    width: 52px; height: 52px;
+    background: var(--ok-light);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 24px;
+  }
+  .confirm-box h3 { font-family: var(--font-display); font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+  .confirm-box p { font-size: 14px; color: var(--text-muted); }
+
+  /* PENDING REQUESTS SECTION */
+  .pending-section {
+    margin-bottom: 1.5rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .pending-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--warn-light);
+  }
+  .pending-header h3 {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--warn);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .pending-badge {
+    background: var(--warn);
+    color: white;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    min-width: 20px;
+    text-align: center;
+  }
+  .pending-item {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .pending-item:last-child { border-bottom: none; }
+  .pending-item-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .pending-room-name {
+    font-weight: 600;
+    font-size: 14px;
+  }
+  .pending-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+  .pending-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .btn-approve { background: var(--ok-light); color: var(--ok); border: 1px solid #C2D9D1; }
+  .btn-approve:hover { background: #D0E8E0; }
+  .btn-modify { background: var(--warn-light); color: var(--warn); border: 1px solid #F0D9B0; }
+  .btn-modify:hover { background: #FAE8CC; }
+  .btn-reject { background: var(--danger-light); color: var(--danger); border: 1px solid #E8BFBF; }
+  .btn-reject:hover { background: #F5D5D5; }
+
+  /* MODIFY MODAL inline expand */
+  .modify-form {
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 12px;
+    margin-top: 10px;
+    border: 1px solid var(--border-light);
+    display: none;
+  }
+  .modify-form.open { display: block; }
+
+  /* TOGGLE SWITCH */
+  .toggle-switch { position:relative; display:inline-block; width:36px; height:20px; flex-shrink:0; }
+  .toggle-switch input { opacity:0; width:0; height:0; }
+  .toggle-slider { position:absolute; cursor:pointer; inset:0; background:#ccc; border-radius:20px; transition:.2s; }
+  .toggle-slider:before { content:''; position:absolute; width:14px; height:14px; left:3px; bottom:3px; background:white; border-radius:50%; transition:.2s; }
+  .toggle-switch input:checked + .toggle-slider { background:var(--accent); }
+  .toggle-switch input:checked + .toggle-slider:before { transform:translateX(16px); }
+
+  /* NAV badge */
+  .nav-pending-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    background: #C07D00;
+    border-radius: 50%;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
+  /* PRINT */
+  @media print {
+    nav, .nav-tabs, #admin-btn { display: none; }
+  }
+
+  /* MISC */
+  .divider { border: none; border-top: 1px solid var(--border-light); margin: 1.25rem 0; }
+  .text-danger { color: var(--danger); }
+  .flex-gap { display: flex; gap: 8px; flex-wrap: wrap; }
+  .current-bookings-list { display: flex; flex-direction: column; gap: 8px; }
+  .booking-list-item {
+    padding: 10px 12px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    border: 1px solid var(--border-light);
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .booking-list-item:hover { background: var(--accent-light); }
+  .booking-list-item .bli-room { font-weight: 600; font-size: 14px; }
+  .booking-list-item .bli-meta { color: var(--text-muted); margin-top: 2px; }
+  .booking-list-item.active-now { border-left: 3px solid var(--danger); }
+  .legend {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 0 2rem;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+  select option { font-family: var(--font-body); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">
+    <div>
+      <div class="nav-title">Room Booking Tracker</div>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('status')">Room Status</button>
+    <button class="nav-tab" id="admin-btn" onclick="requireAdmin()">Admin Panel<span class="nav-pending-dot" id="nav-pending-dot" style="display:none"></span></button>
+  </div>
+  <div class="nav-right">
+    <div id="clock">—</div>
+  </div>
+</nav>
+
+<!-- STATUS PAGE -->
+<div class="page active" id="page-status">
+  <div class="status-header">
+    <div>
+      <h1>Training Rooms</h1>
+      <p id="status-date">—</p>
+    </div>
+    <div class="summary-pills">
+      <div class="pill pill-ok"><div class="dot"></div><span id="count-free">0 available</span></div>
+      <div class="pill pill-busy"><div class="dot"></div><span id="count-occ">0 occupied</span></div>
+      <div class="pill pill-soon"><div class="dot"></div><span id="count-soon">0 ending soon</span></div>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#1E4A3C"></div>Available</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#C0392B"></div>Occupied</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#C07D00"></div>Ending in &lt;30 min</div>
+  </div>
+  <div class="rooms-grid" id="rooms-grid"></div>
+</div>
+
+<!-- ADMIN PAGE -->
+<div class="page" id="page-admin">
+  <div class="admin-layout">
+    <!-- Sidebar: Booking Form -->
+    <div class="admin-sidebar">
+      <h2 id="form-title">New Booking</h2>
+      <form id="booking-form" onsubmit="submitBooking(event)">
+        <input type="hidden" id="edit-id">
+        <div class="form-group">
+          <label>Room</label>
+          <select id="f-room" required>
+            <option value="">Select a room...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Booked By</label>
+          <input type="text" id="f-booker" placeholder="Name / Team" required maxlength="80">
+        </div>
+        <div class="form-group">
+          <label>Purpose</label>
+          <input type="text" id="f-purpose" placeholder="e.g. Team training, Interview..." maxlength="100">
+        </div>
+        <div class="form-row" style="align-items:center;margin-bottom:4px">
+          <div class="form-group" id="f-date-wrap">
+            <label>Date</label>
+            <input type="date" id="f-date" required>
+          </div>
+          <div class="form-group">
+            <label>Number of attendees</label>
+            <input type="number" id="f-attendees" min="1" max="200" placeholder="—">
+          </div>
+        </div>
+
+        <!-- RECURRING TOGGLE -->
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <label class="toggle-switch">
+            <input type="checkbox" id="f-recurring" onchange="toggleRecurring()">
+            <span class="toggle-slider"></span>
+          </label>
+          <span style="font-size:13px;font-weight:600;color:var(--text-muted)">Recurring — weekdays only</span>
+        </div>
+        <div id="recurring-fields" style="display:none;margin-bottom:8px">
+          <div class="form-row">
+            <div class="form-group">
+              <label>From Date</label>
+              <input type="date" id="f-recur-from">
+            </div>
+            <div class="form-group">
+              <label>To Date</label>
+              <input type="date" id="f-recur-to">
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:-4px;margin-bottom:4px">One booking per Mon–Fri in range.</div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Start Time</label>
+            <input type="time" id="f-start" required>
+          </div>
+          <div class="form-group">
+            <label>End Time</label>
+            <input type="time" id="f-end" required>
+          </div>
+        </div>
+        <div class="form-error" id="form-error"></div>
+        <hr class="divider">
+        <div class="flex-gap">
+          <button type="submit" class="btn btn-primary" id="form-submit-btn">Book Room</button>
+          <button type="button" class="btn btn-ghost" onclick="resetForm()">Clear</button>
+        </div>
+      </form>
+
+      <hr class="divider" style="margin-top:1.5rem">
+      <div style="margin-bottom:0.75rem; display:flex; align-items:center; justify-content:space-between;">
+        <span style="font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:0.6px; color:var(--text-muted)">Active Now</span>
+      </div>
+      <div class="current-bookings-list" id="active-now-list"></div>
+    </div>
+
+    <!-- Main: Bookings Table -->
+    <div class="admin-main">
+      <!-- PENDING REQUESTS -->
+      <div id="pending-section" class="pending-section" style="display:none">
+        <div class="pending-header">
+          <h3>⏳ Pending Requests <span class="pending-badge" id="pending-count">0</span></h3>
+        </div>
+        <div id="pending-list"></div>
+      </div>
+
+      <div class="bookings-header">
+        <h2>All Bookings</h2>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <div class="search-input-wrap">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input type="text" id="search-input" placeholder="Search bookings..." oninput="renderTable()">
+          </div>
+          <select id="filter-room" onchange="renderTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:14px;outline:none;">
+            <option value="">All rooms</option>
+          </select>
+          <select id="filter-date" onchange="renderTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:14px;outline:none;">
+            <option value="">All dates</option>
+            <option value="today">Today</option>
+            <option value="upcoming">Upcoming</option>
+            <option value="past">Past</option>
+          </select>
+          <button class="btn btn-ghost" onclick="exportExcel()" style="white-space:nowrap">&#8595; Export Excel</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="bookings-table">
+          <thead>
+            <tr>
+              <th>Room</th>
+              <th>Booked By</th>
+              <th>Purpose</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Att.</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+      <div id="table-count" style="font-size:13px;color:var(--text-muted);margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="login-modal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Admin Access</div>
+    <div class="modal-sub">Enter the admin password to continue.</div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()">
+      <div class="form-error" id="login-error">Incorrect password.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeLogin()">Cancel</button>
+      <button class="btn btn-primary" onclick="doLogin()">Log in</button>
+    </div>
+  </div>
+</div>
+
+<!-- REQUEST BOOKING MODAL -->
+<div class="modal-overlay" id="request-modal" style="display:none;" onclick="if(event.target===this&&!reqSubmitting)closeRequestModal()">
+  <div class="modal-box-lg">
+    <div id="req-form-view">
+      <div class="modal-title">Request a Booking</div>
+      <div class="modal-sub" id="req-modal-sub">Fill in your details and an admin will confirm your booking.</div>
+      <div class="form-group">
+        <label>Room</label>
+        <select id="req-room" required>
+          <option value="">Select a room...</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Your Name / Team</label>
+        <input type="text" id="req-booker" placeholder="e.g. Priya Sharma" maxlength="80" required>
+      </div>
+      <div class="form-group">
+        <label>Purpose</label>
+        <input type="text" id="req-purpose" placeholder="e.g. Team Training, Interview..." maxlength="100">
+      </div>
+      <div class="form-row">
+        <div class="form-group" id="req-date-wrap">
+          <label>Date</label>
+          <input type="date" id="req-date" required>
+        </div>
+        <div class="form-group">
+          <label>Attendees</label>
+          <input type="number" id="req-attendees" min="1" max="200" placeholder="—">
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+        <label class="toggle-switch">
+          <input type="checkbox" id="req-recurring" onchange="toggleReqRecurring()">
+          <span class="toggle-slider"></span>
+        </label>
+        <span style="font-size:13px;font-weight:600;color:var(--text-muted)">Recurring — weekdays only</span>
+      </div>
+      <div id="req-recurring-fields" style="display:none;margin-bottom:8px">
+        <div class="form-row">
+          <div class="form-group">
+            <label>From Date</label>
+            <input type="date" id="req-recur-from">
+          </div>
+          <div class="form-group">
+            <label>To Date</label>
+            <input type="date" id="req-recur-to">
+          </div>
+        </div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px">One request per Mon–Fri in range.</div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Start Time</label>
+          <input type="time" id="req-start" required>
+        </div>
+        <div class="form-group">
+          <label>End Time</label>
+          <input type="time" id="req-end" required>
+        </div>
+      </div>
+      <div class="form-error" id="req-error"></div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeRequestModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitRequest()">Submit Request</button>
+      </div>
+    </div>
+    <div id="req-confirm-view" style="display:none">
+      <div class="confirm-box">
+        <div class="confirm-icon">✅</div>
+        <h3>Request Submitted!</h3>
+        <p>Your booking request has been sent.<br>An admin will review and confirm it shortly.</p>
+        <div class="modal-actions" style="justify-content:center;margin-top:1.5rem">
+          <button class="btn btn-primary" onclick="closeRequestModal()">Done</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REJECT MODAL -->
+<div class="modal-overlay" id="reject-modal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Reject Request?</div>
+    <div class="modal-sub" id="reject-modal-sub">This request will be removed from pending.</div>
+    <div class="form-group" style="margin-top:0.5rem">
+      <label>Reason (optional)</label>
+      <input type="text" id="reject-reason" placeholder="e.g. Slot unavailable" maxlength="120">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('reject-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmReject()">Reject</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="delete-modal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Delete Booking?</div>
+    <div class="modal-sub" id="delete-modal-sub">This cannot be undone.</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('delete-modal').style.display='none'">Cancel</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+// ===== CONFIGURATION =====
+const ADMIN_PASSWORD = 'admin123'; // Change this to your preferred password
+const ROOMS = [
+  { id: 'brihaspati', name: 'Brihaspati', floor: '2nd Floor' },
+  { id: 'vedvyas', name: 'Vedvyas', floor: '2nd Floor' },
+  { id: 'conf2f', name: '2nd Floor Conference Room', floor: '2nd Floor' },
+  { id: 'parashurama', name: 'Parashurama', floor: '4th Floor' },
+  { id: 'pingala', name: 'Pingala', floor: '4th Floor' },
+  { id: 'chanakya', name: 'Chanakya', floor: '4th Floor' },
+  { id: 'bhardwaja', name: 'Bhardwaja', floor: '4th Floor' },
+  { id: 'vishwamitra', name: 'Vishwamitra', floor: '2nd Floor' },
+  { id: 'vasistha', name: 'Vasistha', floor: '2nd Floor' },
+  { id: 'sharada', name: 'Sharada', floor: '2nd Floor' },
+];
+
+// ===== STATE =====
+let bookings = [];
+let adminLoggedIn = false;
+let deleteTargetId = null;
+let clockInterval = null;
+
+// ===== STORAGE =====
+const API_URL = 'https://script.google.com/macros/s/AKfycbxyWH1QZqz6LX2s_kqbuJLi4b4i1yiCBCvpg_GdjuoO1mL1SNS_EzUisV8Myzpjy5DYsQ/exec';
+
+async function saveData() {
+  // no-op: individual operations call API directly
+}
+
+async function loadData() {
+  try {
+    showLoadingOverlay(true);
+    const res = await fetch(API_URL);
+    const data = await res.json();
+    bookings = data.map(r => {
+
+      // Clean time: handle all Google Sheets time formats
+      const cleanTime = t => {
+        if (!t && t !== 0) return '00:00';
+        t = String(t).trim();
+        // Already HH:MM
+        if (/^\d{1,2}:\d{2}$/.test(t)) return t.padStart(5,'0');
+        // HH:MM:SS (24hr)
+        if (/^\d{1,2}:\d{2}:\d{2}$/.test(t)) return t.substring(0,5).padStart(5,'0');
+        // H:MM:SS AM/PM e.g. "1:44:00 PM"
+        const ampm = t.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+        if (ampm) {
+          let h = parseInt(ampm[1]);
+          const m = parseInt(ampm[2]);
+          const period = ampm[3].toUpperCase();
+          if (period === 'AM' && h === 12) h = 0;
+          if (period === 'PM' && h !== 12) h += 12;
+          return pad(h) + ':' + pad(m);
+        }
+        // Google Sheets time serial (fraction of day)
+        const num = parseFloat(t);
+        if (!isNaN(num) && num < 1) {
+          const totalMins = Math.round(num * 24 * 60);
+          const h = Math.floor(totalMins / 60) % 24;
+          const m = totalMins % 60;
+          return pad(h) + ':' + pad(m);
+        }
+        return '00:00';
+      };
+      // Clean date: handle all Google Sheets date formats
+      const cleanDate = d => {
+        if (!d) return '';
+        d = String(d).trim();
+        // Already YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
+        // ISO datetime e.g. "2026-05-20T00:00:00.000Z"
+        if (/^\d{4}-\d{2}-\d{2}T/.test(d)) return d.substring(0, 10);
+        // DD/MM/YYYY
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(d)) {
+          const p = d.split('/');
+          return p[2] + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
+        }
+        // MM/DD/YYYY (US format from Sheets)
+        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(d)) {
+          const p = d.split('/');
+          return p[2] + '-' + p[0].padStart(2,'0') + '-' + p[1].padStart(2,'0');
+        }
+        // DD-Mon-YYYY e.g. "20-May-2026"
+        const months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+        const monMatch = d.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+        if (monMatch) {
+          const mo = months[monMatch[2].toLowerCase()] || '01';
+          return monMatch[3] + '-' + mo + '-' + monMatch[1].padStart(2,'0');
+        }
+        // Google Sheets date serial
+        const num = parseFloat(d);
+        if (!isNaN(num) && num > 1000) {
+          const epoch = new Date(1899, 11, 30).getTime();
+          const dateObj = new Date(epoch + num * 86400000);
+          return dateObj.getFullYear() + '-' + pad(dateObj.getMonth()+1) + '-' + pad(dateObj.getDate());
+        }
+        return d;
+      };
+      return {
+        id: String(r.BookingID || '').trim(),
+        room: String(r.Room || '').trim(),
+        booker: String(r.BookedBy || '').trim(),
+        purpose: String(r.Purpose || '').trim(),
+        date: cleanDate(r.BookingDate),
+        start: cleanTime(r.StartTime),
+        end: cleanTime(r.EndTime),
+        attendees: String(r.Attendees || '').trim(),
+        status: String(r.Status || 'Confirmed').trim() // default legacy rows to Confirmed
+      };
+    });
+  } catch(e) {
+    console.error('Load error', e);
+    bookings = [];
+    toast('Could not load bookings. Check connection.', true);
+  } finally {
+    showLoadingOverlay(false);
+  }
+}
+
+async function apiCreate(b) {
+  await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'create',
+      BookingID: b.id,
+      Room: b.room,
+      BookedBy: b.booker,
+      Purpose: b.purpose || '',
+      BookingDate: b.date,
+      StartTime: b.start,
+      EndTime: b.end,
+      Attendees: b.attendees || '',
+      Status: b.status || 'Confirmed'
+    })
+  });
+}
+
+async function apiUpdateStatus(id, status) {
+  await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'updateStatus', BookingID: id, Status: status })
+  });
+}
+
+async function apiUpdate(b) {
+  await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({
+      action: 'update',
+      BookingID: b.id,
+      Room: b.room,
+      BookedBy: b.booker,
+      Purpose: b.purpose || '',
+      BookingDate: b.date,
+      StartTime: b.start,
+      EndTime: b.end,
+      Attendees: b.attendees || ''
+    })
+  });
+}
+
+async function apiDelete(id) {
+  await fetch(API_URL, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'delete', BookingID: id })
+  });
+}
+
+function showLoadingOverlay(show) {
+  let el = document.getElementById('loading-overlay');
+  if (!el) return;
+  el.style.display = show ? 'flex' : 'none';
+}
+
+// ===== HELPERS =====
+function genId() { return 'b' + Date.now() + Math.random().toString(36).slice(2,6); }
+
+function pad(n) { return String(n).padStart(2,'0'); }
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+}
+
+function fmtDate(ds) {
+  const [y,m,d] = ds.split('-');
+  const names = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${parseInt(d)} ${names[parseInt(m)-1]} ${y}`;
+}
+
+function fmtTime(ts) {
+  if (!ts) return '—';
+  ts = String(ts).trim();
+  if (!ts || ts === 'undefined') return '—';
+  // Parse to 24hr first via parseTime, then format
+  const mins = parseTimeToMins(ts);
+  if (mins === null) return '—';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  const ap = h >= 12 ? 'PM' : 'AM';
+  const hr = h % 12 || 12;
+  return `${hr}:${pad(m)} ${ap}`;
+}
+
+function parseTimeToMins(ts) {
+  if (!ts) return null;
+  ts = String(ts).trim();
+  // "H:MM AM/PM" or "H:MM:SS AM/PM"
+  const ampm = ts.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (ampm) {
+    let h = parseInt(ampm[1]);
+    const m = parseInt(ampm[2]);
+    const period = ampm[3].toUpperCase();
+    if (period === 'AM' && h === 12) h = 0;
+    if (period === 'PM' && h !== 12) h += 12;
+    return h * 60 + m;
+  }
+  // "HH:MM" or "HH:MM:SS" 24hr
+  const hhmm = ts.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+  if (hhmm) {
+    return parseInt(hhmm[1]) * 60 + parseInt(hhmm[2]);
+  }
+  // Fraction of day (Google Sheets serial)
+  const num = parseFloat(ts);
+  if (!isNaN(num) && num > 0 && num < 1) {
+    return Math.round(num * 24 * 60);
+  }
+  return null;
+}
+
+function minutesSinceMidnight(ts) {
+  const mins = parseTimeToMins(ts);
+  return mins !== null ? mins : 0;
+}
+
+function nowMinutes() {
+  const n = new Date();
+  return n.getHours() * 60 + n.getMinutes();
+}
+
+function roomName(id) {
+  const r = ROOMS.find(r => r.id === id);
+  return r ? r.name : id;
+}
+
+// Get current/upcoming bookings for a room today
+function getRoomStatus(roomId) {
+  const today = todayStr();
+  const now = nowMinutes();
+  // Only confirmed bookings show on status page
+  const todayBookings = bookings.filter(b => b.room === roomId && b.date === today && (b.status === 'Confirmed' || !b.status));
+  todayBookings.sort((a,b) => minutesSinceMidnight(a.start) - minutesSinceMidnight(b.start));
+
+  // Find active booking
+  const active = todayBookings.find(b => {
+    const s = minutesSinceMidnight(b.start);
+    const e = minutesSinceMidnight(b.end);
+    return now >= s && now < e;
+  });
+
+  if (active) {
+    const endMin = minutesSinceMidnight(active.end);
+    const startMin = minutesSinceMidnight(active.start);
+    const total = endMin - startMin;
+    const elapsed = now - startMin;
+    const remaining = endMin - now;
+    const pct = Math.min(100, Math.round((elapsed / total) * 100));
+    return {
+      status: remaining <= 30 ? 'soon' : 'occupied',
+      booking: active,
+      remaining,
+      pct,
+      nextBookings: todayBookings.filter(b => minutesSinceMidnight(b.start) > now)
+    };
+  }
+
+  // Next booking today
+  const next = todayBookings.find(b => minutesSinceMidnight(b.start) > now);
+  return {
+    status: 'free',
+    booking: null,
+    remaining: null,
+    pct: 0,
+    nextBookings: next ? [next] : []
+  };
+}
+
+// ===== ROOM STATUS GRID =====
+function renderStatusGrid() {
+  const grid = document.getElementById('rooms-grid');
+  const today = new Date();
+  document.getElementById('status-date').textContent =
+    today.toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+
+  let freeCount = 0, occCount = 0, soonCount = 0;
+  let html = '';
+
+  for (const room of ROOMS) {
+    const { status, booking, remaining, pct, nextBookings } = getRoomStatus(room.id);
+    if (status === 'free') freeCount++;
+    else if (status === 'occupied') occCount++;
+    else soonCount++;
+
+    let badgeClass, badgeText, cardClass, barClass;
+    if (status === 'free') {
+      badgeClass = 'badge-free'; badgeText = 'Available'; cardClass = 'free'; barClass = 'free';
+    } else if (status === 'soon') {
+      badgeClass = 'badge-soon'; badgeText = 'Ending Soon'; cardClass = 'ending-soon'; barClass = 'warn';
+    } else {
+      badgeClass = 'badge-occupied'; badgeText = 'In Use'; cardClass = 'occupied'; barClass = '';
+    }
+
+    let bodyHtml = '';
+    if (booking) {
+      const mins = remaining;
+      const freeAt = fmtTime(booking.end);
+      bodyHtml += `
+        <div class="room-info-row">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span class="room-booker">${escHtml(booking.booker)}</span>
+        </div>`;
+      if (booking.purpose) {
+        bodyHtml += `<div class="room-info-row">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          <span>${escHtml(booking.purpose)}</span>
+        </div>`;
+      }
+      bodyHtml += `<div class="room-info-row">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Free at <strong>${freeAt}</strong> &mdash; ${mins} min remaining</span>
+        </div>`;
+      bodyHtml += `<div class="room-time-bar"><div class="room-time-fill ${barClass}" style="width:${pct}%"></div></div>`;
+      bodyHtml += `<div class="room-time-label">${fmtTime(booking.start)} – ${fmtTime(booking.end)}</div>`;
+    } else {
+      bodyHtml += `<div class="room-info-row">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>No active booking</span>
+      </div>`;
+      bodyHtml += `<div class="room-time-bar"><div class="room-time-fill free" style="width:0%"></div></div>`;
+      bodyHtml += `<div class="room-time-label">&nbsp;</div>`;
+    }
+
+    if (nextBookings.length > 0) {
+      const nb = nextBookings[0];
+      bodyHtml += `<div class="next-booking-note">
+        Next: <strong>${escHtml(nb.booker)}</strong> at ${fmtTime(nb.start)}
+        ${nb.purpose ? '&mdash; ' + escHtml(nb.purpose) : ''}
+      </div>`;
+    }
+
+    html += `<div class="room-card ${cardClass}">
+      <div class="room-card-top" onclick="openSchedModal('${room.id}')" title="Click to view 30-day schedule" style="cursor:pointer">
+        <div>
+          <div class="room-name">${escHtml(room.name)}</div>
+          <div class="room-floor">${escHtml(room.floor)}</div>
+        </div>
+        <span class="status-badge ${badgeClass}">${badgeText}</span>
+      </div>
+      ${bodyHtml}
+      <button class="btn-request" onclick="openRequestModal('${room.id}')">+ Request a Booking</button>
+    </div>`;
+  }
+
+  grid.innerHTML = html;
+  document.getElementById('count-free').textContent = freeCount + ' available';
+  document.getElementById('count-occ').textContent = occCount + ' occupied';
+  document.getElementById('count-soon').textContent = soonCount + ' ending soon';
+}
+
+// ===== ADMIN TABLE =====
+function renderTable() {
+  const tbody = document.getElementById('table-body');
+  const search = document.getElementById('search-input').value.toLowerCase().trim();
+  const filterRoom = document.getElementById('filter-room').value;
+  const filterDate = document.getElementById('filter-date').value;
+  const today = todayStr();
+
+  let filtered = [...bookings];
+  if (search) {
+    filtered = filtered.filter(b =>
+      b.booker.toLowerCase().includes(search) ||
+      b.room.toLowerCase().includes(search) ||
+      roomName(b.room).toLowerCase().includes(search) ||
+      (b.purpose || '').toLowerCase().includes(search)
+    );
+  }
+  if (filterRoom) filtered = filtered.filter(b => b.room === filterRoom);
+  if (filterDate === 'today') filtered = filtered.filter(b => b.date === today);
+  else if (filterDate === 'upcoming') filtered = filtered.filter(b => b.date > today || (b.date === today && minutesSinceMidnight(b.end) > nowMinutes()));
+  else if (filterDate === 'past') filtered = filtered.filter(b => b.date < today || (b.date === today && minutesSinceMidnight(b.end) <= nowMinutes()));
+
+  // Sort: upcoming first
+  filtered.sort((a,b) => {
+    const da = a.date + a.start, db = b.date + b.start;
+    return da < db ? -1 : da > db ? 1 : 0;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <div>No bookings found.</div>
+    </div></td></tr>`;
+    document.getElementById('table-count').textContent = '';
+    return;
+  }
+
+  const now = nowMinutes();
+  let html = '';
+  for (const b of filtered) {
+    const isToday = b.date === today;
+    const s = minutesSinceMidnight(b.start), e = minutesSinceMidnight(b.end);
+    let statusBadge;
+    if (b.status === 'Pending') {
+      statusBadge = `<span class="status-badge" style="background:var(--warn-light);color:var(--warn)">Pending</span>`;
+    } else if (b.status === 'Rejected') {
+      statusBadge = `<span class="status-badge" style="background:var(--danger-light);color:var(--danger)">Rejected</span>`;
+    } else if (b.date < today || (isToday && e <= now)) {
+      statusBadge = `<span class="status-badge" style="background:#F0EDE6;color:var(--text-muted)">Past</span>`;
+    } else if (isToday && now >= s && now < e) {
+      statusBadge = `<span class="status-badge badge-occupied">Active</span>`;
+    } else {
+      statusBadge = `<span class="status-badge badge-free">Upcoming</span>`;
+    }
+
+    html += `<tr>
+      <td class="td-room">${escHtml(roomName(b.room))}</td>
+      <td>${escHtml(b.booker)}</td>
+      <td style="color:var(--text-muted)">${escHtml(b.purpose || '—')}</td>
+      <td>${fmtDate(b.date)}</td>
+      <td style="white-space:nowrap">${fmtTime(b.start)} – ${fmtTime(b.end)}</td>
+      <td>${b.attendees || '—'}</td>
+      <td>${statusBadge}</td>
+      <td>
+        <div class="td-actions">
+          <button class="btn btn-ghost btn-sm" onclick="editBooking('${b.id}')">Edit</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteBooking('${b.id}')">Delete</button>
+        </div>
+      </td>
+    </tr>`;
+  }
+  tbody.innerHTML = html;
+  document.getElementById('table-count').textContent = `Showing ${filtered.length} of ${bookings.length} booking${bookings.length !== 1 ? 's' : ''}`;
+}
+
+function renderActiveNow() {
+  const today = todayStr();
+  const now = nowMinutes();
+  const active = bookings.filter(b => {
+    if (b.date !== today) return false;
+    return now >= minutesSinceMidnight(b.start) && now < minutesSinceMidnight(b.end);
+  });
+  const el = document.getElementById('active-now-list');
+  if (active.length === 0) {
+    el.innerHTML = `<div style="font-size:13px;color:var(--text-faint);padding:8px 0;">No active bookings right now.</div>`;
+    return;
+  }
+  el.innerHTML = active.map(b => `
+    <div class="booking-list-item active-now" onclick="editBooking('${b.id}')">
+      <div class="bli-room">${escHtml(roomName(b.room))}</div>
+      <div class="bli-meta">${escHtml(b.booker)} · until ${fmtTime(b.end)}</div>
+    </div>
+  `).join('');
+}
+
+// ===== FORM =====
+function populateRoomSelects() {
+  const roomSelect = document.getElementById('f-room');
+  const filterSelect = document.getElementById('filter-room');
+  roomSelect.innerHTML = '<option value="">Select a room...</option>';
+  filterSelect.innerHTML = '<option value="">All rooms</option>';
+  for (const r of ROOMS) {
+    roomSelect.innerHTML += `<option value="${r.id}">${r.name} (${r.floor})</option>`;
+    filterSelect.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+  }
+}
+
+function resetForm() {
+  document.getElementById('booking-form').reset();
+  document.getElementById('edit-id').value = '';
+  document.getElementById('form-title').textContent = 'New Booking';
+  document.getElementById('form-submit-btn').textContent = 'Book Room';
+  document.getElementById('form-error').classList.remove('visible');
+  document.getElementById('f-date').value = todayStr();
+  document.getElementById('f-date-wrap').style.display = '';
+  document.getElementById('f-recurring').checked = false;
+  document.getElementById('recurring-fields').style.display = 'none';
+  document.getElementById('f-recur-from').value = '';
+  document.getElementById('f-recur-to').value = '';
+}
+
+function editBooking(id) {
+  const b = bookings.find(x => x.id === id);
+  if (!b) return;
+  document.getElementById('edit-id').value = b.id;
+  document.getElementById('f-room').value = b.room;
+  document.getElementById('f-booker').value = b.booker;
+  document.getElementById('f-purpose').value = b.purpose || '';
+  document.getElementById('f-date').value = b.date;
+  document.getElementById('f-start').value = b.start;
+  document.getElementById('f-end').value = b.end;
+  document.getElementById('f-attendees').value = b.attendees || '';
+  document.getElementById('form-title').textContent = 'Edit Booking';
+  document.getElementById('form-submit-btn').textContent = 'Save Changes';
+  document.getElementById('form-error').classList.remove('visible');
+  // Scroll sidebar to top
+  document.querySelector('.admin-sidebar').scrollTop = 0;
+}
+
+function showError(msg) {
+  const el = document.getElementById('form-error');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+function toggleRecurring() {
+  const on = document.getElementById('f-recurring').checked;
+  document.getElementById('recurring-fields').style.display = on ? '' : 'none';
+  document.getElementById('f-date-wrap').style.display = on ? 'none' : '';
+  document.getElementById('f-date').required = !on;
+}
+
+async function submitBooking(e) {
+  e.preventDefault();
+  const id       = document.getElementById('edit-id').value;
+  const room     = document.getElementById('f-room').value;
+  const booker   = document.getElementById('f-booker').value.trim();
+  const purpose  = document.getElementById('f-purpose').value.trim();
+  const date     = document.getElementById('f-date').value;
+  const start    = document.getElementById('f-start').value;
+  const end      = document.getElementById('f-end').value;
+  const attendees = document.getElementById('f-attendees').value;
+  const recurring = document.getElementById('f-recurring').checked;
+
+  if (!room || !booker || !start || !end) {
+    showError('Please fill in all required fields.'); return;
+  }
+  if (minutesSinceMidnight(end) <= minutesSinceMidnight(start)) {
+    showError('End time must be after start time.'); return;
+  }
+
+  // Build list of dates to book
+  let dates = [];
+  if (recurring) {
+    const from = document.getElementById('f-recur-from').value;
+    const to   = document.getElementById('f-recur-to').value;
+    if (!from || !to) { showError('Please select a From and To date for recurring bookings.'); return; }
+    if (to < from)    { showError('To date must be after From date.'); return; }
+    const cur = new Date(from + 'T00:00:00');
+    const end2 = new Date(to + 'T00:00:00');
+    while (cur <= end2) {
+      const day = cur.getDay();
+      if (day !== 0 && day !== 6) { // weekdays only
+        dates.push(cur.getFullYear() + '-' + pad(cur.getMonth()+1) + '-' + pad(cur.getDate()));
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (dates.length === 0) { showError('No weekdays found in the selected range.'); return; }
+    if (dates.length > 60)  { showError('Range too large — max 60 weekdays at once.'); return; }
+  } else {
+    if (!date) { showError('Please select a date.'); return; }
+    dates = [date];
+  }
+
+  // Conflict check for each date
+  const newS = minutesSinceMidnight(start), newE = minutesSinceMidnight(end);
+  for (const d of dates) {
+    const conflict = bookings.find(b => {
+      if (b.room !== room || b.date !== d) return false;
+      if (id && b.id === id) return false;
+      return newS < minutesSinceMidnight(b.end) && newE > minutesSinceMidnight(b.start);
+    });
+    if (conflict) {
+      showError(`Conflict on ${fmtDate(d)}: already booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.`);
+      return;
+    }
+  }
+
+  document.getElementById('form-error').classList.remove('visible');
+
+  try {
+    showLoadingOverlay(true);
+    if (id && !recurring) {
+      // Edit single booking
+      const booking = { id, room, booker, purpose, date: dates[0], start, end, attendees: attendees || '', status: 'Confirmed' };
+      const idx = bookings.findIndex(b => b.id === id);
+      if (idx !== -1) bookings[idx] = booking;
+      await apiUpdate(booking);
+      toast('Booking updated.');
+    } else {
+      // Create one or many
+      for (const d of dates) {
+        const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Confirmed' };
+        bookings.push(booking);
+        await apiCreate(booking);
+      }
+      toast(dates.length > 1 ? `${dates.length} recurring bookings created.` : 'Room booked successfully.');
+    }
+  } catch(err) {
+    toast('Error saving booking. Try again.', true);
+  } finally {
+    showLoadingOverlay(false);
+  }
+  resetForm();
+  renderTable();
+  renderActiveNow();
+  renderStatusGrid();
+}
+
+// ===== DELETE =====
+function deleteBooking(id) {
+  const b = bookings.find(x => x.id === id);
+  if (!b) return;
+  deleteTargetId = id;
+  document.getElementById('delete-modal-sub').textContent =
+    `Delete booking for ${roomName(b.room)} by ${b.booker} on ${fmtDate(b.date)}?`;
+  document.getElementById('delete-modal').style.display = 'flex';
+}
+
+async function confirmDelete() {
+  if (!deleteTargetId) return;
+  const idToDelete = deleteTargetId;
+  deleteTargetId = null;
+  document.getElementById('delete-modal').style.display = 'none';
+  try {
+    showLoadingOverlay(true);
+    bookings = bookings.filter(b => b.id !== idToDelete);
+    await apiDelete(idToDelete);
+    toast('Booking deleted.');
+  } catch(e) {
+    toast('Error deleting booking. Try again.', true);
+  } finally {
+    showLoadingOverlay(false);
+  }
+  renderTable();
+  renderActiveNow();
+  renderStatusGrid();
+}
+
+// ===== ADMIN AUTH =====
+function requireAdmin() {
+  if (adminLoggedIn) {
+    showPage('admin');
+  } else {
+    document.getElementById('login-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('login-pw').focus(), 50);
+  }
+}
+
+function doLogin() {
+  const pw = document.getElementById('login-pw').value;
+  if (pw === ADMIN_PASSWORD) {
+    adminLoggedIn = true;
+    document.getElementById('login-modal').style.display = 'none';
+    document.getElementById('login-pw').value = '';
+    document.getElementById('login-error').classList.remove('visible');
+    showPage('admin');
+    toast('Welcome, Admin.');
+  } else {
+    document.getElementById('login-error').classList.add('visible');
+    document.getElementById('login-pw').value = '';
+    document.getElementById('login-pw').focus();
+  }
+}
+
+function closeLogin() {
+  document.getElementById('login-modal').style.display = 'none';
+  document.getElementById('login-pw').value = '';
+  document.getElementById('login-error').classList.remove('visible');
+}
+
+// ===== PAGES =====
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (name === 'status') {
+    document.querySelectorAll('.nav-tab')[0].classList.add('active');
+    renderStatusGrid();
+  } else if (name === 'admin') {
+    document.querySelectorAll('.nav-tab')[1].classList.add('active');
+    renderTable();
+    renderActiveNow();
+    renderPendingRequests();
+    resetForm();
+  }
+}
+
+// ===== TOAST =====
+function toast(msg, isErr) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast' + (isErr ? ' toast-err' : '');
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3100);
+}
+
+// ===== CLOCK =====
+function updateClock() {
+  const now = new Date();
+  const h = now.getHours(), m = now.getMinutes();
+  const ap = h >= 12 ? 'PM' : 'AM';
+  const hr = h % 12 || 12;
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateStr = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()];
+  document.getElementById('clock').textContent = dateStr + '  ' + pad(hr) + ':' + pad(m) + ' ' + ap;
+}
+
+// ===== UTIL =====
+function escHtml(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+// ===== SAMPLE DATA (remove in production) =====
+function seedSampleData() {
+  if (bookings.length > 0) return; // Don't overwrite existing data
+  const today = todayStr();
+  const [y,mo,d] = today.split('-').map(Number);
+  const tomorrow = `${y}-${pad(mo)}-${pad(d+1)}`;
+  const yesterday = `${y}-${pad(mo)}-${pad(d-1)}`;
+  const now = nowMinutes();
+  const curStart = pad(Math.floor((now - 30) / 60)) + ':' + pad((now - 30) % 60);
+  const curEnd = pad(Math.floor((now + 60) / 60)) + ':' + pad((now + 60) % 60);
+  const soonEnd = pad(Math.floor((now + 20) / 60)) + ':' + pad((now + 20) % 60);
+  const soonStart = pad(Math.floor((now - 40) / 60)) + ':' + pad((now - 40) % 60);
+
+  bookings = [
+    { id: genId(), room: 'chanakya', booker: 'HR Team', purpose: 'New Joiner Orientation', date: today, start: curStart, end: curEnd, attendees: '15' },
+    { id: genId(), room: 'pingala', booker: 'Rahul Sharma', purpose: 'Technical Interview', date: today, start: soonStart, end: soonEnd, attendees: '3' },
+    { id: genId(), room: 'brihaspati', booker: 'Finance Department', purpose: 'Budget Review Q3', date: today, start: '14:00', end: '16:00', attendees: '8' },
+    { id: genId(), room: 'vishwamitra', booker: 'L&D Team', purpose: 'Leadership Training', date: tomorrow, start: '09:30', end: '13:00', attendees: '20' },
+    { id: genId(), room: 'chanakya', booker: 'Product Team', purpose: 'Sprint Planning', date: tomorrow, start: '10:00', end: '11:30', attendees: '12' },
+    { id: genId(), room: 'conf2f', booker: 'Board Meeting', purpose: 'Q3 Review', date: tomorrow, start: '14:00', end: '17:00', attendees: '10' },
+    { id: genId(), room: 'sharada', booker: 'Admin Team', purpose: 'Policy Workshop', date: yesterday, start: '10:00', end: '12:00', attendees: '6' },
+  ];
+  saveData();
+}
+
+// ===== REQUEST BOOKING (Public) =====
+let reqSubmitting = false;
+let rejectTargetId = null;
+
+function openRequestModal(roomId) {
+  const sel = document.getElementById('req-room');
+  sel.innerHTML = '<option value="">Select a room...</option>';
+  for (const r of ROOMS) sel.innerHTML += `<option value="${r.id}">${r.name} (${r.floor})</option>`;
+  if (roomId) sel.value = roomId;
+
+  document.getElementById('req-date').value = todayStr();
+  document.getElementById('req-error').textContent = '';
+  document.getElementById('req-error').classList.remove('visible');
+  document.getElementById('req-form-view').style.display = '';
+  document.getElementById('req-confirm-view').style.display = 'none';
+  ['req-booker','req-purpose','req-start','req-end','req-attendees','req-recur-from','req-recur-to'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('req-recurring').checked = false;
+  document.getElementById('req-recurring-fields').style.display = 'none';
+  document.getElementById('req-date-wrap').style.display = '';
+  document.getElementById('req-date').required = true;
+  reqSubmitting = false;
+  document.getElementById('request-modal').style.display = 'flex';
+}
+
+function closeRequestModal() {
+  document.getElementById('request-modal').style.display = 'none';
+}
+
+function toggleReqRecurring() {
+  const on = document.getElementById('req-recurring').checked;
+  document.getElementById('req-recurring-fields').style.display = on ? '' : 'none';
+  document.getElementById('req-date-wrap').style.display = on ? 'none' : '';
+  document.getElementById('req-date').required = !on;
+}
+
+async function submitRequest() {
+  const room      = document.getElementById('req-room').value;
+  const booker    = document.getElementById('req-booker').value.trim();
+  const purpose   = document.getElementById('req-purpose').value.trim();
+  const date      = document.getElementById('req-date').value;
+  const start     = document.getElementById('req-start').value;
+  const end       = document.getElementById('req-end').value;
+  const attendees = document.getElementById('req-attendees').value;
+  const recurring = document.getElementById('req-recurring').checked;
+  const errEl     = document.getElementById('req-error');
+
+  if (!room || !booker || !start || !end) {
+    errEl.textContent = 'Please fill in all required fields.';
+    errEl.classList.add('visible'); return;
+  }
+  if (minutesSinceMidnight(end) <= minutesSinceMidnight(start)) {
+    errEl.textContent = 'End time must be after start time.';
+    errEl.classList.add('visible'); return;
+  }
+
+  // Build dates list
+  let dates = [];
+  if (recurring) {
+    const from = document.getElementById('req-recur-from').value;
+    const to   = document.getElementById('req-recur-to').value;
+    if (!from || !to) { errEl.textContent = 'Please select From and To dates.'; errEl.classList.add('visible'); return; }
+    if (to < from)    { errEl.textContent = 'To date must be after From date.'; errEl.classList.add('visible'); return; }
+    const cur = new Date(from + 'T00:00:00');
+    const end2 = new Date(to + 'T00:00:00');
+    while (cur <= end2) {
+      const day = cur.getDay();
+      if (day !== 0 && day !== 6) dates.push(cur.getFullYear() + '-' + pad(cur.getMonth()+1) + '-' + pad(cur.getDate()));
+      cur.setDate(cur.getDate() + 1);
+    }
+    if (dates.length === 0) { errEl.textContent = 'No weekdays in selected range.'; errEl.classList.add('visible'); return; }
+    if (dates.length > 60)  { errEl.textContent = 'Range too large — max 60 weekdays.'; errEl.classList.add('visible'); return; }
+  } else {
+    if (!date) { errEl.textContent = 'Please select a date.'; errEl.classList.add('visible'); return; }
+    dates = [date];
+  }
+
+  errEl.classList.remove('visible');
+  reqSubmitting = true;
+
+  try {
+    showLoadingOverlay(true);
+    for (const d of dates) {
+      const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Pending' };
+      await apiCreate(booking);
+      bookings.push(booking);
+    }
+    document.getElementById('req-form-view').style.display = 'none';
+    document.getElementById('req-confirm-view').style.display = '';
+    updatePendingDot();
+  } catch(e) {
+    errEl.textContent = 'Error submitting request. Please try again.';
+    errEl.classList.add('visible');
+    reqSubmitting = false;
+  } finally {
+    showLoadingOverlay(false);
+  }
+}
+
+// ===== PENDING REQUESTS (Admin) =====
+function updatePendingDot() {
+  const count = bookings.filter(b => b.status === 'Pending').length;
+  document.getElementById('nav-pending-dot').style.display = count > 0 ? '' : 'none';
+}
+
+function renderPendingRequests() {
+  const pending = bookings.filter(b => b.status === 'Pending');
+  const section = document.getElementById('pending-section');
+  const list = document.getElementById('pending-list');
+  document.getElementById('pending-count').textContent = pending.length;
+
+  if (pending.length === 0) {
+    section.style.display = 'none';
+    updatePendingDot();
+    return;
+  }
+  section.style.display = '';
+  updatePendingDot();
+
+  list.innerHTML = pending.sort((a,b) => (a.date+a.start) < (b.date+b.start) ? -1 : 1).map(b => `
+    <div class="pending-item" id="pending-item-${b.id}">
+      <div class="pending-item-top">
+        <div>
+          <div class="pending-room-name">${escHtml(roomName(b.room))}</div>
+          <div class="pending-meta">${escHtml(b.booker)}${b.purpose ? ' &middot; ' + escHtml(b.purpose) : ''}</div>
+          <div class="pending-meta">${fmtDate(b.date)} &middot; ${fmtTime(b.start)} – ${fmtTime(b.end)}${b.attendees ? ' &middot; ' + b.attendees + ' attendees' : ''}</div>
+        </div>
+      </div>
+      <div class="pending-actions">
+        <button class="btn btn-sm btn-approve" onclick="approvePending('${b.id}')">✅ Approve</button>
+        <button class="btn btn-sm btn-modify" onclick="toggleModifyForm('${b.id}')">✏️ Modify & Approve</button>
+        <button class="btn btn-sm btn-reject" onclick="openRejectModal('${b.id}')">❌ Reject</button>
+      </div>
+      <div class="modify-form" id="modify-form-${b.id}">
+        <div class="form-row">
+          <div class="form-group"><label>Date</label><input type="date" id="mod-date-${b.id}" value="${b.date}"></div>
+          <div class="form-group"><label>Attendees</label><input type="number" id="mod-att-${b.id}" value="${b.attendees||''}" min="1" max="200" placeholder="—"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Start Time</label><input type="time" id="mod-start-${b.id}" value="${b.start}"></div>
+          <div class="form-group"><label>End Time</label><input type="time" id="mod-end-${b.id}" value="${b.end}"></div>
+        </div>
+        <div class="flex-gap" style="margin-top:8px">
+          <button class="btn btn-sm btn-approve" onclick="modifyAndApprove('${b.id}')">Confirm & Approve</button>
+          <button class="btn btn-sm btn-ghost" onclick="toggleModifyForm('${b.id}')">Cancel</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleModifyForm(id) {
+  const f = document.getElementById('modify-form-' + id);
+  f.classList.toggle('open');
+}
+
+async function approvePending(id) {
+  const idx = bookings.findIndex(b => b.id === id);
+  if (idx === -1) return;
+  try {
+    showLoadingOverlay(true);
+    bookings[idx].status = 'Confirmed';
+    await apiUpdateStatus(id, 'Confirmed');
+    toast('Booking approved ✅');
+  } catch(e) { toast('Error approving booking.', true); }
+  finally { showLoadingOverlay(false); }
+  renderPendingRequests(); renderTable(); renderStatusGrid();
+}
+
+async function modifyAndApprove(id) {
+  const idx = bookings.findIndex(b => b.id === id);
+  if (idx === -1) return;
+  const date = document.getElementById('mod-date-' + id).value;
+  const start = document.getElementById('mod-start-' + id).value;
+  const end = document.getElementById('mod-end-' + id).value;
+  const attendees = document.getElementById('mod-att-' + id).value;
+  if (!date || !start || !end) { toast('Please fill in all fields.', true); return; }
+  if (minutesSinceMidnight(end) <= minutesSinceMidnight(start)) { toast('End time must be after start time.', true); return; }
+  const b = { ...bookings[idx], date, start, end, attendees: attendees||'', status: 'Confirmed' };
+  try {
+    showLoadingOverlay(true);
+    bookings[idx] = b;
+    await fetch(API_URL, { method: 'POST', body: JSON.stringify({
+      action: 'update', BookingID: b.id, Room: b.room, BookedBy: b.booker,
+      Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start,
+      EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed'
+    })});
+    toast('Booking modified & approved ✅');
+  } catch(e) { toast('Error updating booking.', true); }
+  finally { showLoadingOverlay(false); }
+  renderPendingRequests(); renderTable(); renderStatusGrid();
+}
+
+function openRejectModal(id) {
+  rejectTargetId = id;
+  const b = bookings.find(x => x.id === id);
+  document.getElementById('reject-modal-sub').textContent =
+    b ? `Reject booking for ${roomName(b.room)} by ${b.booker} on ${fmtDate(b.date)}?` : 'This request will be removed.';
+  document.getElementById('reject-reason').value = '';
+  document.getElementById('reject-modal').style.display = 'flex';
+}
+
+async function confirmReject() {
+  if (!rejectTargetId) return;
+  const id = rejectTargetId; rejectTargetId = null;
+  document.getElementById('reject-modal').style.display = 'none';
+  try {
+    showLoadingOverlay(true);
+    const idx = bookings.findIndex(b => b.id === id);
+    if (idx !== -1) bookings[idx].status = 'Rejected';
+    await apiUpdateStatus(id, 'Rejected');
+    toast('Request rejected.');
+  } catch(e) { toast('Error rejecting request.', true); }
+  finally { showLoadingOverlay(false); }
+  renderPendingRequests(); renderTable(); renderStatusGrid();
+}
+
+// ===== INIT =====
+async function init() {
+  populateRoomSelects();
+  document.getElementById('f-date').value = todayStr();
+  updateClock();
+  await loadData();
+  updatePendingDot();
+  renderStatusGrid();
+  setInterval(async () => {
+    updateClock();
+    await loadData();
+    updatePendingDot();
+    if (document.getElementById('page-status').classList.contains('active')) {
+      renderStatusGrid();
+    }
+    if (document.getElementById('page-admin').classList.contains('active')) {
+      renderTable();
+      renderActiveNow();
+      renderPendingRequests();
+    }
+  }, 60000);
+}
+
+
+
+// ===== SCHEDULE MODAL =====
+function openSchedModal(roomId) {
+  const room = ROOMS.find(r => r.id === roomId);
+  if (!room) return;
+  document.getElementById('sched-modal-room').textContent = room.name + ' — ' + room.floor;
+  const body = document.getElementById('sched-modal-body');
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  let html = '';
+
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() + i);
+    const ds = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+    const dayName = d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
+    const isToday = i === 0;
+    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
+
+    const dayBookings = bookings
+      .filter(b => b.room === roomId && b.date === ds && (b.status === 'Confirmed' || !b.status))
+      .sort((a, b) => minutesSinceMidnight(a.start) - minutesSinceMidnight(b.start));
+
+    let dayHtml = '';
+    if (dayBookings.length === 0) {
+      dayHtml = '<div class="sched-free-all">Fully available all day</div>';
+    } else {
+      for (const b of dayBookings) {
+        dayHtml += '<div class="sched-slot booked">' +
+          '<div class="sched-slot-time">' + fmtTime(b.start) + ' – ' + fmtTime(b.end) + '</div>' +
+          '<div class="sched-slot-info">' +
+            '<div class="sched-slot-booker">' + escHtml(b.booker) + '</div>' +
+            (b.purpose ? '<div class="sched-slot-purpose">' + escHtml(b.purpose) + (b.attendees ? ' &middot; ' + b.attendees + ' attendees' : '') + '</div>' : '') +
+          '</div>' +
+        '</div>';
+      }
+    }
+
+    const labelClass = isToday ? 'sched-day-label today-label' : 'sched-day-label';
+    const todayTag = isToday ? ' &mdash; Today' : '';
+    const weekendTag = isWeekend ? ' <span style="color:var(--text-faint);font-weight:400">(Weekend)</span>' : '';
+
+    html += '<div class="sched-day-group">' +
+      '<div class="' + labelClass + '">' + dayName + todayTag + weekendTag + '</div>' +
+      dayHtml +
+    '</div>';
+  }
+
+  body.innerHTML = html;
+  document.getElementById('sched-modal').style.display = 'flex';
+}
+
+function closeSchedModal() {
+  document.getElementById('sched-modal').style.display = 'none';
+}
+
+function closeSchedIfBg(e) {
+  if (e.target === document.getElementById('sched-modal')) closeSchedModal();
+}
+
+// ===== EXPORT EXCEL =====
+function exportExcel() {
+  const headers = ['Room','Floor','Booked By','Purpose','Date','Start Time','End Time','Attendees','Status'];
+  const today = todayStr();
+  const now = nowMinutes();
+  const rows = [...bookings].sort((a,b) => {
+    const da = a.date + a.start, db = b.date + b.start;
+    return da < db ? -1 : da > db ? 1 : 0;
+  }).map(b => {
+    const room = ROOMS.find(r => r.id === b.room) || {};
+    const s = minutesSinceMidnight(b.start), e = minutesSinceMidnight(b.end);
+    let status;
+    if (b.date < today || (b.date === today && e <= now)) status = 'Past';
+    else if (b.date === today && now >= s && now < e) status = 'Active';
+    else status = 'Upcoming';
+    return {
+      'Room': room.name || b.room,
+      'Floor': room.floor || '',
+      'Booked By': b.booker,
+      'Purpose': b.purpose || '',
+      'Date': b.date,
+      'Start Time': fmtTime(b.start),
+      'End Time': fmtTime(b.end),
+      'Attendees': b.attendees || '',
+      'Status': status
+    };
+  });
+  if (typeof XLSX === 'undefined') {
+    toast('Loading Excel library, please try again in a moment.', true);
+    return;
+  }
+  const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+  ws['!cols'] = [20,18,22,28,14,14,14,12,12].map(w => ({ wch: w }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Room Bookings');
+  XLSX.writeFile(wb, 'room-bookings-' + todayStr() + '.xlsx');
+  toast('Excel file downloaded.');
+}
+
+init();
+</script>
+
+
+<!-- LOADING OVERLAY -->
+<div id="loading-overlay" style="display:none;position:fixed;inset:0;background:rgba(20,18,14,0.5);z-index:400;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
+  <div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+  <div style="color:white;font-size:14px;font-family:var(--font-body)">Please wait...</div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+
+<!-- SCHEDULE MODAL -->
+<div class="modal-overlay" id="sched-modal" style="display:none;" onclick="closeSchedIfBg(event)">
+  <div class="sched-modal-box">
+    <div class="sched-modal-header">
+      <div>
+        <h2 id="sched-modal-room">Room Schedule</h2>
+        <p>Next 30 days — click any free slot to contact admin for booking</p>
+      </div>
+      <button class="sched-close" onclick="closeSchedModal()">&#x2715;</button>
+    </div>
+    <div class="sched-modal-body" id="sched-modal-body"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</body>
+</html>
