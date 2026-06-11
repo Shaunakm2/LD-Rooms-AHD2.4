@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Room Booking — Knowledge Centre</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a3a6b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="IMS Rooms">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
@@ -739,6 +743,49 @@
   .legend-item { display: flex; align-items: center; gap: 6px; }
   .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
   select option { font-family: var(--font-body); }
+
+  .cancel-modal-box { background:var(--surface);border-radius:var(--radius-lg);padding:1.5rem;width:420px;max-width:calc(100vw - 2rem);border:1px solid var(--border); }
+  .cancel-booking-card { background:var(--bg);border-radius:var(--radius);padding:12px;margin:12px 0;font-size:13px;border:1px solid var(--border-light); }
+  .cancel-booking-card .room-name { font-size:15px;font-weight:700; }
+  .cancel-booking-card .meta { color:var(--text-muted);margin-top:3px; }
+
+
+  /* CONFLICT RESOLUTION MODAL */
+  .conflict-modal-box {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 0;
+    width: 620px;
+    max-width: calc(100vw - 2rem);
+    max-height: 82vh;
+    border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .conflict-modal-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .conflict-modal-header h2 { font-family:var(--font-display);font-size:18px;font-weight:700; }
+  .conflict-modal-header p { font-size:13px;color:var(--text-muted);margin-top:3px; }
+  .conflict-modal-body { overflow-y:auto;padding:1.25rem 1.5rem;flex:1; }
+  .conflict-modal-footer { padding:1rem 1.5rem;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0; }
+  .conflict-date-block { margin-bottom:1.25rem;padding:12px;border-radius:var(--radius);border:1px solid var(--border); }
+  .conflict-date-block.has-conflict { border-color:#E8BFBF;background:var(--danger-light); }
+  .conflict-date-block.resolved { border-color:#A8D5C2;background:var(--ok-light); }
+  .conflict-date-label { font-weight:700;font-size:14px;margin-bottom:4px; }
+  .conflict-reason { font-size:12px;color:var(--danger);margin-bottom:8px; }
+  .conflict-alts { display:flex;flex-wrap:wrap;gap:6px;margin-top:8px; }
+  .alt-btn { padding:5px 12px;border-radius:999px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);transition:all 0.15s; }
+  .alt-btn:hover { background:var(--accent);color:white;border-color:var(--accent); }
+  .alt-btn.selected { background:var(--accent);color:white;border-color:var(--accent); }
+  .alt-btn.skip-btn { background:var(--surface2);color:var(--text-muted); }
+  .alt-btn.skip-btn.selected { background:#888;color:white;border-color:#888; }
+  .conflict-resolved-label { font-size:12px;color:var(--ok);font-weight:500; }
+  .conflict-free-label { font-size:12px;color:var(--text-muted); }
+
 </style>
 </head>
 <body>
@@ -1008,7 +1055,6 @@
 
 <script>
 // ===== CONFIGURATION =====
-const ADMIN_PASSWORD = 'admin123'; // Change this to your preferred password
 const ROOMS = [
   { id: 'brihaspati', name: 'Brihaspati', floor: '2nd Floor' },
   { id: 'vedvyas', name: 'Vedvyas', floor: '2nd Floor' },
@@ -1029,15 +1075,15 @@ let deleteTargetId = null;
 let clockInterval = null;
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycby2yJtniuuFKlFlTlASXW69mzt5f_ziMa8kTCVzpI5GMan9nBwecEGTdE70ri-IyxYt9A/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyVczroZPO7AGd8Y6YoCCZpoh5l7povgOHoVAHcnT1bvk4G1ijm18AkPQD8us1R8Ennow/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
 }
 
-async function loadData() {
+async function loadData(silent = false) {
   try {
-    showLoadingOverlay(true);
+    if (!silent) showLoadingOverlay(true);
     const res = await fetch(API_URL);
     const data = await res.json();
     bookings = data.map(r => {
@@ -1121,7 +1167,7 @@ async function loadData() {
     bookings = [];
     toast('Could not load bookings. Check connection.', true);
   } finally {
-    showLoadingOverlay(false);
+    if (!silent) showLoadingOverlay(false);
   }
 }
 
@@ -1575,49 +1621,65 @@ async function submitBooking(e) {
   const dates = isRecurring ? getWeekdays(date, dateEnd) : [date];
   if (dates.length === 0) { showError('No weekdays found in selected range.'); return; }
 
-  // Conflict check for all dates
-  const newS = minutesSinceMidnight(start);
-  const newE = minutesSinceMidnight(end);
-  for (const d of dates) {
+  document.getElementById('form-error').classList.remove('visible');
+
+  // Single booking edit - simple conflict check
+  if (id) {
+    const newS = minutesSinceMidnight(start);
+    const newE = minutesSinceMidnight(end);
     const conflict = bookings.find(b => {
-      if (b.room !== room || b.date !== d) return false;
-      if (id && b.id === id) return false;
+      if (b.room !== room || b.date !== date) return false;
+      if (b.id === id) return false;
       return newS < minutesSinceMidnight(b.end) && newE > minutesSinceMidnight(b.start);
     });
     if (conflict) {
-      showError(`Conflict on ${fmtDate(d)}: ${roomName(room)} booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.`);
+      showError(`Conflict: ${roomName(room)} booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.`);
       return;
     }
-  }
-
-  document.getElementById('form-error').classList.remove('visible');
-
-  try {
-    showLoadingOverlay(true);
-    if (id) {
-      // Single edit — no recurring on edits
+    try {
+      showLoadingOverlay(true);
       const booking = { id, room, booker, purpose, date, start, end, attendees: attendees || '', status: 'Confirmed' };
       const idx = bookings.findIndex(b => b.id === id);
       if (idx !== -1) bookings[idx] = booking;
       await apiUpdate(booking);
       toast('Booking updated.');
-    } else {
-      // Create one booking per weekday
+    } catch(err) { toast('Error saving. Try again.', true); } finally { showLoadingOverlay(false); }
+    resetForm(); renderTable(); renderActiveNow();
+    return;
+  }
+
+  // Recurring / new booking — check conflicts per date
+  const newS = minutesSinceMidnight(start);
+  const newE = minutesSinceMidnight(end);
+  const conflictDates = [];
+  const cleanDates = [];
+
+  for (const d of dates) {
+    const conflict = bookings.find(b => {
+      if (b.room !== room || b.date !== d) return false;
+      return newS < minutesSinceMidnight(b.end) && newE > minutesSinceMidnight(b.start);
+    });
+    if (conflict) conflictDates.push({ date: d, conflict });
+    else cleanDates.push(d);
+  }
+
+  if (conflictDates.length === 0) {
+    // No conflicts — book all directly
+    try {
+      showLoadingOverlay(true);
       for (const d of dates) {
         const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Confirmed' };
         bookings.push(booking);
         await apiCreate(booking);
       }
       toast(dates.length === 1 ? 'Room booked successfully.' : `${dates.length} recurring bookings created (Mon–Fri).`);
-    }
-  } catch(err) {
-    toast('Error saving booking. Try again.', true);
-  } finally {
-    showLoadingOverlay(false);
+    } catch(err) { toast('Error saving. Try again.', true); } finally { showLoadingOverlay(false); }
+    resetForm(); renderTable(); renderActiveNow();
+  } else {
+    // Show conflict resolution modal
+    openConflictModal({ room, booker, purpose, start, end, attendees, cleanDates, conflictDates });
   }
-  resetForm();
-  renderTable();
-  renderActiveNow();
+  
   renderStatusGrid();
 }
 
@@ -1661,19 +1723,33 @@ function requireAdmin() {
   }
 }
 
-function doLogin() {
+async function doLogin() {
   const pw = document.getElementById('login-pw').value;
-  if (pw === ADMIN_PASSWORD) {
-    adminLoggedIn = true;
-    document.getElementById('login-modal').style.display = 'none';
-    document.getElementById('login-pw').value = '';
-    document.getElementById('login-error').classList.remove('visible');
-    showPage('admin');
-    toast('Welcome, Admin.');
-  } else {
+  if (!pw) return;
+  try {
+    showLoadingOverlay(true);
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'verifyAdmin', password: pw })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      adminLoggedIn = true;
+      document.getElementById('login-modal').style.display = 'none';
+      document.getElementById('login-pw').value = '';
+      document.getElementById('login-error').classList.remove('visible');
+      showPage('admin');
+      toast('Welcome, Admin.');
+    } else {
+      document.getElementById('login-error').classList.add('visible');
+      document.getElementById('login-pw').value = '';
+      document.getElementById('login-pw').focus();
+    }
+  } catch(e) {
+    document.getElementById('login-error').textContent = 'Connection error. Try again.';
     document.getElementById('login-error').classList.add('visible');
-    document.getElementById('login-pw').value = '';
-    document.getElementById('login-pw').focus();
+  } finally {
+    showLoadingOverlay(false);
   }
 }
 
@@ -1948,7 +2024,7 @@ async function init() {
   renderStatusGrid();
   setInterval(async () => {
     updateClock();
-    await loadData();
+    await loadData(true);
     updatePendingDot();
     if (document.getElementById('page-status').classList.contains('active')) {
       renderStatusGrid();
@@ -1991,12 +2067,15 @@ function openSchedModal(roomId) {
       dayHtml = '<div class="sched-free-all">Fully available all day</div>';
     } else {
       for (const b of dayBookings) {
-        dayHtml += '<div class="sched-slot booked">' +
+        const isPast = ds < todayStr() || (ds === todayStr() && minutesSinceMidnight(b.end) <= nowMinutes());
+        dayHtml += '<div class="sched-slot booked" style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
+          '<div style="display:flex;align-items:center;gap:12px;flex:1">' +
           '<div class="sched-slot-time">' + fmtTime(b.start) + ' – ' + fmtTime(b.end) + '</div>' +
           '<div class="sched-slot-info">' +
             '<div class="sched-slot-booker">' + escHtml(b.booker) + '</div>' +
             (b.purpose ? '<div class="sched-slot-purpose">' + escHtml(b.purpose) + (b.attendees ? ' &middot; ' + b.attendees + ' attendees' : '') + '</div>' : '') +
-          '</div>' +
+          '</div></div>' +
+          (!isPast ? '<button class="btn btn-danger btn-sm" style="flex-shrink:0;font-size:11px;padding:4px 10px" onclick="event.stopPropagation();openCancelModal(\'' + b.id + '\')" title="Cancel this booking">Cancel</button>' : '') +
         '</div>';
       }
     }
@@ -2021,6 +2100,198 @@ function closeSchedModal() {
 
 function closeSchedIfBg(e) {
   if (e.target === document.getElementById('sched-modal')) closeSchedModal();
+}
+
+
+// ===== CONFLICT RESOLUTION =====
+let _conflictSession = null;
+
+function getFreeRoomsForDate(date, start, end, excludeRoom) {
+  const s = minutesSinceMidnight(start);
+  const e = minutesSinceMidnight(end);
+  return ROOMS.filter(r => {
+    if (r.id === excludeRoom) return false;
+    const hasConflict = bookings.some(b => {
+      if (b.room !== r.id || b.date !== date) return false;
+      return s < minutesSinceMidnight(b.end) && e > minutesSinceMidnight(b.start);
+    });
+    return !hasConflict;
+  });
+}
+
+function openConflictModal(session) {
+  _conflictSession = session;
+  // Initialize resolution map: date -> roomId or 'skip'
+  session.resolutions = {};
+  session.conflictDates.forEach(cd => { session.resolutions[cd.date] = null; });
+
+  const totalDates = session.cleanDates.length + session.conflictDates.length;
+  document.getElementById('conflict-modal-desc').textContent =
+    `${session.conflictDates.length} of ${totalDates} date(s) have conflicts. Choose an alternative room or skip each date.`;
+
+  renderConflictModal();
+  document.getElementById('conflict-modal').style.display = 'flex';
+}
+
+function renderConflictModal() {
+  const s = _conflictSession;
+  let html = '';
+
+  // Show clean dates summary
+  if (s.cleanDates.length > 0) {
+    html += `<div style="margin-bottom:1rem;padding:10px 12px;background:var(--ok-light);border-radius:var(--radius);font-size:13px;color:var(--ok);">
+      <strong>✅ ${s.cleanDates.length} date(s) will be booked in ${roomName(s.room)}:</strong>
+      <div style="margin-top:4px;color:var(--text-muted)">${s.cleanDates.map(d => fmtDate(d)).join(' · ')}</div>
+    </div>`;
+  }
+
+  // Show conflict dates
+  s.conflictDates.forEach(cd => {
+    const freeRooms = getFreeRoomsForDate(cd.date, s.start, s.end, s.room);
+    const chosen = s.resolutions[cd.date];
+    const isSkipped = chosen === 'skip';
+    const isResolved = chosen && chosen !== 'skip';
+    const blockClass = isResolved ? 'resolved' : isSkipped ? '' : 'has-conflict';
+
+    html += `<div class="conflict-date-block ${blockClass}" id="cblock-${cd.date}">
+      <div class="conflict-date-label">${fmtDate(cd.date)}</div>
+      <div class="conflict-reason">⚠️ ${roomName(s.room)} booked ${fmtTime(cd.conflict.start)}–${fmtTime(cd.conflict.end)} by ${escHtml(cd.conflict.booker)}</div>`;
+
+    if (freeRooms.length > 0) {
+      html += `<div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Available alternatives:</div>
+        <div class="conflict-alts">`;
+      freeRooms.forEach(r => {
+        const sel = chosen === r.id ? 'selected' : '';
+        html += `<button class="alt-btn ${sel}" onclick="selectAlt('${cd.date}','${r.id}')">${escHtml(r.name)}<span style="opacity:0.6;font-size:11px;margin-left:4px">${escHtml(r.floor)}</span></button>`;
+      });
+      html += `<button class="alt-btn skip-btn ${isSkipped ? 'selected' : ''}" onclick="selectAlt('${cd.date}','skip')">Skip this date</button>`;
+      html += `</div>`;
+    } else {
+      html += `<div style="font-size:12px;color:var(--text-muted);margin-top:4px;">No rooms available at this time — this date will be skipped.</div>`;
+      s.resolutions[cd.date] = 'skip';
+    }
+
+    if (isResolved) {
+      html += `<div class="conflict-resolved-label" style="margin-top:8px;">✅ Will book ${roomName(chosen)}</div>`;
+    } else if (isSkipped) {
+      html += `<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">⏭️ Skipping this date</div>`;
+    }
+
+    html += `</div>`;
+  });
+
+  document.getElementById('conflict-modal-body').innerHTML = html;
+}
+
+function selectAlt(date, roomId) {
+  _conflictSession.resolutions[date] = roomId;
+  renderConflictModal();
+}
+
+function closeConflictModal() {
+  document.getElementById('conflict-modal').style.display = 'none';
+  _conflictSession = null;
+}
+
+async function confirmConflictResolution() {
+  const s = _conflictSession;
+  // Check all conflict dates have a resolution
+  const unresolved = s.conflictDates.filter(cd => s.resolutions[cd.date] === null);
+  if (unresolved.length > 0) {
+    toast('Please choose an alternative or skip for all conflicted dates.', true);
+    return;
+  }
+
+  document.getElementById('conflict-modal').style.display = 'none';
+
+  try {
+    showLoadingOverlay(true);
+    let count = 0;
+
+    // Book clean dates with original room
+    for (const d of s.cleanDates) {
+      const booking = { id: genId(), room: s.room, booker: s.booker, purpose: s.purpose, date: d, start: s.start, end: s.end, attendees: s.attendees || '', status: 'Confirmed' };
+      bookings.push(booking);
+      await apiCreate(booking);
+      count++;
+    }
+
+    // Book conflict dates with chosen rooms
+    for (const cd of s.conflictDates) {
+      const chosenRoom = s.resolutions[cd.date];
+      if (chosenRoom === 'skip') continue;
+      const booking = { id: genId(), room: chosenRoom, booker: s.booker, purpose: s.purpose, date: cd.date, start: s.start, end: s.end, attendees: s.attendees || '', status: 'Confirmed' };
+      bookings.push(booking);
+      await apiCreate(booking);
+      count++;
+    }
+
+    const skipped = s.conflictDates.filter(cd => s.resolutions[cd.date] === 'skip').length;
+    let msg = `${count} booking(s) created.`;
+    if (skipped > 0) msg += ` ${skipped} date(s) skipped.`;
+    toast(msg);
+  } catch(err) {
+    toast('Error saving bookings. Try again.', true);
+  } finally {
+    showLoadingOverlay(false);
+  }
+
+  _conflictSession = null;
+  resetForm();
+  renderTable();
+  renderActiveNow();
+  renderStatusGrid();
+}
+
+
+// ===== REQUESTER CANCELLATION =====
+let _cancelBookingId = null;
+
+function openCancelModal(bookingId) {
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return;
+  _cancelBookingId = bookingId;
+  document.getElementById('cancel-booking-card').innerHTML =
+    '<div class="room-name">' + escHtml(roomName(b.room)) + '</div>' +
+    '<div class="meta">' + fmtDate(b.date) + ' &middot; ' + fmtTime(b.start) + ' – ' + fmtTime(b.end) +
+    (b.purpose ? ' &middot; ' + escHtml(b.purpose) : '') + '</div>';
+  document.getElementById('cancel-name-input').value = '';
+  document.getElementById('cancel-error').classList.remove('visible');
+  document.getElementById('cancel-modal').style.display = 'flex';
+}
+
+function closeCancelModal() {
+  document.getElementById('cancel-modal').style.display = 'none';
+  _cancelBookingId = null;
+}
+
+async function confirmCancelBooking() {
+  const b = bookings.find(x => x.id === _cancelBookingId);
+  if (!b) return;
+  const entered = document.getElementById('cancel-name-input').value.trim().toLowerCase();
+  const actual = b.booker.trim().toLowerCase();
+  if (entered !== actual) {
+    document.getElementById('cancel-error').classList.add('visible');
+    return;
+  }
+  document.getElementById('cancel-error').classList.remove('visible');
+  try {
+    showLoadingOverlay(true);
+    await apiDelete(_cancelBookingId);
+    bookings = bookings.filter(x => x.id !== _cancelBookingId);
+    closeCancelModal();
+    closeSchedModal();
+    toast('Booking cancelled successfully.');
+    renderStatusGrid();
+    if (document.getElementById('page-admin').classList.contains('active')) {
+      renderTable(); renderActiveNow();
+    }
+  } catch(e) {
+    toast('Error cancelling. Try again.', true);
+  } finally {
+    showLoadingOverlay(false);
+  }
+  _cancelBookingId = null;
 }
 
 // ===== EXPORT EXCEL =====
@@ -2063,8 +2334,48 @@ function exportExcel() {
 }
 
 init();
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  });
+}
 </script>
 
+
+
+<!-- CONFLICT RESOLUTION MODAL -->
+<div class="modal-overlay" id="conflict-modal" style="display:none;">
+  <div class="conflict-modal-box">
+    <div class="conflict-modal-header">
+      <h2>⚠️ Booking Conflicts Detected</h2>
+      <p id="conflict-modal-desc">Some dates have conflicts. Pick an alternative room or skip each date.</p>
+    </div>
+    <div class="conflict-modal-body" id="conflict-modal-body"></div>
+    <div class="conflict-modal-footer">
+      <button class="btn btn-ghost" onclick="closeConflictModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmConflictResolution()">Confirm Bookings</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- CANCEL BOOKING MODAL -->
+<div class="modal-overlay" id="cancel-modal" style="display:none;" onclick="if(event.target===this)closeCancelModal()">
+  <div class="cancel-modal-box">
+    <div class="modal-title">Cancel Your Booking</div>
+    <div class="modal-sub">Enter your name to verify and cancel your booking.</div>
+    <div id="cancel-booking-card" class="cancel-booking-card"></div>
+    <div class="form-group">
+      <label>Your Name (as booked)</label>
+      <input type="text" id="cancel-name-input" placeholder="Enter your name exactly" maxlength="80">
+      <div class="form-error" id="cancel-error">Name doesn't match. Please enter exactly as booked.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeCancelModal()">Back</button>
+      <button class="btn btn-danger" onclick="confirmCancelBooking()">Cancel My Booking</button>
+    </div>
+  </div>
+</div>
 
 <!-- LOADING OVERLAY -->
 <div id="loading-overlay" style="display:none;position:fixed;inset:0;background:rgba(20,18,14,0.5);z-index:400;align-items:center;justify-content:center;flex-direction:column;gap:12px;">
