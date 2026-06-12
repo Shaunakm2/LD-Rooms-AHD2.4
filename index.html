@@ -416,9 +416,11 @@
     background: rgba(20,18,14,0.6);
     z-index: 200;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     backdrop-filter: blur(2px);
+    padding: 1rem 0;
+    overflow-y: auto;
   }
   .modal-box {
     background: var(--surface);
@@ -437,6 +439,7 @@
   .modal-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 1.5rem; }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 1.5rem; }
 
+  .modal-overlay-top { z-index: 350 !important; }
   /* TOAST */
   .toast-container {
     position: fixed;
@@ -601,12 +604,13 @@
   .modal-box-lg {
     background: var(--surface);
     border-radius: var(--radius-lg);
-    padding: 2rem;
+    padding: 1.5rem;
     width: 480px;
     max-width: calc(100vw - 2rem);
     border: 1px solid var(--border);
-    max-height: 90vh;
+    max-height: 88vh;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .confirm-box {
     text-align: center;
@@ -993,6 +997,17 @@
           <input type="number" id="req-attendees" min="1" max="200" placeholder="—">
         </div>
       </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+        <input type="checkbox" id="req-recurring" onchange="toggleReqRecurring()" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+        <label for="req-recurring" style="text-transform:none;letter-spacing:0;font-size:14px;font-weight:500;cursor:pointer;margin:0;">Recurring request (Mon–Fri)</label>
+      </div>
+      <div id="req-recurring-end-wrap" style="display:none;">
+        <div class="form-group">
+          <label>End Date (range)</label>
+          <input type="date" id="req-date-end">
+          <div class="form-note">Request will be made for every weekday in this range.</div>
+        </div>
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label>Start Time</label>
@@ -1075,7 +1090,7 @@ let deleteTargetId = null;
 let clockInterval = null;
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbyVczroZPO7AGd8Y6YoCCZpoh5l7povgOHoVAHcnT1bvk4G1ijm18AkPQD8us1R8Ennow/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby2yJtniuuFKlFlTlASXW69mzt5f_ziMa8kTCVzpI5GMan9nBwecEGTdE70ri-IyxYt9A/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -1146,7 +1161,7 @@ async function loadData(silent = false) {
         if (!isNaN(num) && num > 1000) {
           const epoch = new Date(1899, 11, 30).getTime();
           const dateObj = new Date(epoch + num * 86400000);
-          return dateObj.getFullYear() + '-' + pad(dateObj.getMonth()+1) + '-' + pad(dateObj.getDate());
+          return localDateStr(dateObj);
         }
         return d;
       };
@@ -1232,8 +1247,12 @@ function genId() { return 'b' + Date.now() + Math.random().toString(36).slice(2,
 function pad(n) { return String(n).padStart(2,'0'); }
 
 function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  return localDateStr(new Date());
+}
+
+function localDateStr(d) {
+  // Always uses local time - never UTC - fixes GMT+5:30 timezone shift
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
 }
 
 function fmtDate(ds) {
@@ -1537,6 +1556,8 @@ function resetForm() {
   document.getElementById('f-date').value = todayStr();
   document.getElementById('f-recurring').checked = false;
   document.getElementById('recurring-end-wrap').style.display = 'none';
+  const dateLabelEl = document.querySelector('label[for="f-date"]') || document.getElementById('f-date').previousElementSibling;
+  if (dateLabelEl) dateLabelEl.textContent = 'Start Date';
   if (document.getElementById('edit-id').dataset) delete document.getElementById('edit-id').dataset.fromRequest;
 }
 
@@ -1554,7 +1575,12 @@ function editBooking(id) {
   document.getElementById('form-title').textContent = 'Edit Booking';
   document.getElementById('form-submit-btn').textContent = 'Save Changes';
   document.getElementById('form-error').classList.remove('visible');
-  // Scroll sidebar to top
+  // Hide recurring for edits — editing individual bookings only
+  document.getElementById('f-recurring').checked = false;
+  document.getElementById('recurring-end-wrap').style.display = 'none';
+  // Update date label to just "Date" when editing
+  const dateLabelEl = document.querySelector('label[for="f-date"]') || document.getElementById('f-date').previousElementSibling;
+  if (dateLabelEl) dateLabelEl.textContent = 'Date';
   document.querySelector('.admin-sidebar').scrollTop = 0;
 }
 
@@ -1562,6 +1588,15 @@ function showError(msg) {
   const el = document.getElementById('form-error');
   el.textContent = msg;
   el.classList.add('visible');
+}
+
+function toggleReqRecurring() {
+  const isRecurring = document.getElementById('req-recurring').checked;
+  document.getElementById('req-recurring-end-wrap').style.display = isRecurring ? 'block' : 'none';
+  if (isRecurring) {
+    const startDate = document.getElementById('req-date').value;
+    if (startDate) document.getElementById('req-date-end').value = startDate;
+  }
 }
 
 function toggleRecurring() {
@@ -1582,10 +1617,7 @@ function getWeekdays(startStr, endStr) {
   while (cur <= end) {
     const day = cur.getDay();
     if (day !== 0 && day !== 6) {
-      const y = cur.getFullYear();
-      const m = String(cur.getMonth()+1).padStart(2,'0');
-      const d = String(cur.getDate()).padStart(2,'0');
-      dates.push(`${y}-${m}-${d}`);
+      dates.push(localDateStr(cur));
     }
     cur.setDate(cur.getDate() + 1);
   }
@@ -1644,7 +1676,7 @@ async function submitBooking(e) {
       await apiUpdate(booking);
       toast('Booking updated.');
     } catch(err) { toast('Error saving. Try again.', true); } finally { showLoadingOverlay(false); }
-    resetForm(); renderTable(); renderActiveNow();
+    resetForm(); renderTable(); renderActiveNow(); renderStatusGrid();
     return;
   }
 
@@ -1674,13 +1706,11 @@ async function submitBooking(e) {
       }
       toast(dates.length === 1 ? 'Room booked successfully.' : `${dates.length} recurring bookings created (Mon–Fri).`);
     } catch(err) { toast('Error saving. Try again.', true); } finally { showLoadingOverlay(false); }
-    resetForm(); renderTable(); renderActiveNow();
+    resetForm(); renderTable(); renderActiveNow(); renderStatusGrid();
   } else {
     // Show conflict resolution modal
     openConflictModal({ room, booker, purpose, start, end, attendees, cleanDates, conflictDates });
   }
-  
-  renderStatusGrid();
 }
 
 // ===== DELETE =====
@@ -1856,6 +1886,10 @@ function openRequestModal(roomId) {
 
 function closeRequestModal() {
   document.getElementById('request-modal').style.display = 'none';
+  const recEl = document.getElementById('req-recurring');
+  if (recEl) recEl.checked = false;
+  const wrapEl = document.getElementById('req-recurring-end-wrap');
+  if (wrapEl) wrapEl.style.display = 'none';
 }
 
 async function submitRequest() {
@@ -1866,6 +1900,8 @@ async function submitRequest() {
   const start = document.getElementById('req-start').value;
   const end = document.getElementById('req-end').value;
   const attendees = document.getElementById('req-attendees').value;
+  const isRecurring = document.getElementById('req-recurring').checked;
+  const dateEnd = document.getElementById('req-date-end') ? document.getElementById('req-date-end').value : '';
   const errEl = document.getElementById('req-error');
 
   if (!room || !booker || !date || !start || !end) {
@@ -1876,14 +1912,30 @@ async function submitRequest() {
     errEl.textContent = 'End time must be after start time.';
     errEl.classList.add('visible'); return;
   }
+  if (isRecurring && !dateEnd) {
+    errEl.textContent = 'Please select an end date for the recurring range.';
+    errEl.classList.add('visible'); return;
+  }
+  if (isRecurring && dateEnd < date) {
+    errEl.textContent = 'End date must be on or after start date.';
+    errEl.classList.add('visible'); return;
+  }
   errEl.classList.remove('visible');
   reqSubmitting = true;
 
-  const booking = { id: genId(), room, booker, purpose, date, start, end, attendees: attendees || '', status: 'Pending' };
+  const dates = isRecurring ? getWeekdays(date, dateEnd) : [date];
+  if (dates.length === 0) {
+    errEl.textContent = 'No weekdays found in selected range.';
+    errEl.classList.add('visible'); return;
+  }
+
   try {
     showLoadingOverlay(true);
-    await apiCreate(booking);
-    bookings.push(booking);
+    for (const d of dates) {
+      const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Pending' };
+      await apiCreate(booking);
+      bookings.push(booking);
+    }
     document.getElementById('req-form-view').style.display = 'none';
     document.getElementById('req-confirm-view').style.display = '';
     updatePendingDot();
@@ -2011,7 +2063,7 @@ async function confirmReject() {
     toast('Request rejected.');
   } catch(e) { toast('Error rejecting request.', true); }
   finally { showLoadingOverlay(false); }
-  renderPendingRequests(); renderTable(); renderStatusGrid();
+  renderPendingRequests(); renderTable(); renderStatusGrid(); updatePendingDot();
 }
 
 // ===== INIT =====
@@ -2026,6 +2078,7 @@ async function init() {
     updateClock();
     await loadData(true);
     updatePendingDot();
+    renderPendingRequests();
     if (document.getElementById('page-status').classList.contains('active')) {
       renderStatusGrid();
     }
@@ -2053,7 +2106,7 @@ function openSchedModal(roomId) {
   for (let i = 0; i < 30; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
-    const ds = d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+    const ds = localDateStr(d);
     const dayName = d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' });
     const isToday = i === 0;
     const isWeekend = d.getDay() === 0 || d.getDay() === 6;
@@ -2257,12 +2310,16 @@ function openCancelModal(bookingId) {
     (b.purpose ? ' &middot; ' + escHtml(b.purpose) : '') + '</div>';
   document.getElementById('cancel-name-input').value = '';
   document.getElementById('cancel-error').classList.remove('visible');
+  // Close schedule modal first, then open cancel modal
+  document.getElementById('sched-modal').style.display = 'none';
   document.getElementById('cancel-modal').style.display = 'flex';
 }
 
 function closeCancelModal() {
   document.getElementById('cancel-modal').style.display = 'none';
   _cancelBookingId = null;
+  // Reopen schedule modal so user can continue browsing
+  document.getElementById('sched-modal').style.display = 'flex';
 }
 
 async function confirmCancelBooking() {
@@ -2283,8 +2340,9 @@ async function confirmCancelBooking() {
     closeSchedModal();
     toast('Booking cancelled successfully.');
     renderStatusGrid();
+    updatePendingDot();
     if (document.getElementById('page-admin').classList.contains('active')) {
-      renderTable(); renderActiveNow();
+      renderTable(); renderActiveNow(); renderPendingRequests();
     }
   } catch(e) {
     toast('Error cancelling. Try again.', true);
@@ -2360,7 +2418,7 @@ if ('serviceWorker' in navigator) {
 
 
 <!-- CANCEL BOOKING MODAL -->
-<div class="modal-overlay" id="cancel-modal" style="display:none;" onclick="if(event.target===this)closeCancelModal()">
+<div class="modal-overlay" id="cancel-modal" class="modal-overlay modal-overlay-top" style="display:none;" onclick="if(event.target===this)closeCancelModal()">
   <div class="cancel-modal-box">
     <div class="modal-title">Cancel Your Booking</div>
     <div class="modal-sub">Enter your name to verify and cancel your booking.</div>
@@ -2398,6 +2456,6 @@ if ('serviceWorker' in navigator) {
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
 </body>
 </html>
