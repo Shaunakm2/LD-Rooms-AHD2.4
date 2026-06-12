@@ -1530,8 +1530,8 @@ function renderTable() {
   }
   if (filterRoom) filtered = filtered.filter(b => b.room === filterRoom);
   if (filterDate === 'today') filtered = filtered.filter(b => b.date === today);
-  else if (filterDate === 'upcoming') filtered = filtered.filter(b => b.date > today || (b.date === today && minutesSinceMidnight(b.end) > nowMinutes()));
-  else if (filterDate === 'past') filtered = filtered.filter(b => b.date < today || (b.date === today && minutesSinceMidnight(b.end) <= nowMinutes()));
+  else if (filterDate === 'upcoming') filtered = filtered.filter(b => bookingTimeStatus(b) !== 'past');
+  else if (filterDate === 'past') filtered = filtered.filter(b => bookingTimeStatus(b) === 'past');
 
   // Sort: upcoming first
   filtered.sort((a,b) => {
@@ -2219,15 +2219,9 @@ function closeSchedIfBg(e) {
 let _conflictSession = null;
 
 function getFreeRoomsForDate(date, start, end, excludeRoom) {
-  const s = minutesSinceMidnight(start);
-  const e = minutesSinceMidnight(end);
   return ROOMS.filter(r => {
     if (r.id === excludeRoom) return false;
-    const hasConflict = bookings.some(b => {
-      if (b.room !== r.id || b.date !== date) return false;
-      return s < minutesSinceMidnight(b.end) && e > minutesSinceMidnight(b.start);
-    });
-    return !hasConflict;
+    return !findConflict(r.id, date, start, end, null);
   });
 }
 
