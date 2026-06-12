@@ -1311,50 +1311,121 @@ function nowMinutes() {
   return n.getHours() * 60 + n.getMinutes();
 }
 
+// ===== OVERNIGHT BOOKING HELPERS =====
+function addDaysStr(ds, n) {
+  const [y,m,d] = ds.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate() + n);
+  return localDateStr(dt);
+}
+
+function isOvernight(b) {
+  return minutesSinceMidnight(b.end) <= minutesSinceMidnight(b.start);
+}
+
+// Splits a booking into 1 or 2 {date, start, end} minute-spans (handles midnight crossover)
+function bookingSpans(b) {
+  const s = minutesSinceMidnight(b.start);
+  const e = minutesSinceMidnight(b.end);
+  if (e > s) return [{ date: b.date, start: s, end: e }];
+  const spans = [{ date: b.date, start: s, end: 1440 }];
+  if (e > 0) spans.push({ date: addDaysStr(b.date, 1), start: 0, end: e });
+  return spans;
+}
+
+// Finds a conflicting booking for room/date/start/end, considering overnight spans
+function findConflict(room, date, start, end, excludeId) {
+  const newSpans = bookingSpans({ date, start, end });
+  for (const b of bookings) {
+    if (b.room !== room) continue;
+    if (excludeId && b.id === excludeId) continue;
+    if (b.status === 'Rejected') continue;
+    for (const ex of bookingSpans(b)) {
+      for (const ns of newSpans) {
+        if (ex.date === ns.date && ns.start < ex.end && ns.end > ex.start) return b;
+      }
+    }
+  }
+  return null;
+}
+
+// 'active' | 'past' | 'upcoming' relative to now, handling overnight spans
+function bookingTimeStatus(b) {
+  const today = todayStr();
+  const now = nowMinutes();
+  const spans = bookingSpans(b);
+  for (const sp of spans) {
+    if (sp.date === today && now >= sp.start && now < sp.end) return 'active';
+  }
+  const last = spans[spans.length - 1];
+  if (last.date < today || (last.date === today && last.end <= now)) return 'past';
+  return 'upcoming';
+}
+
+// For the room status tile: elapsed/total minutes if this booking is active right now
+function activeSpanInfo(b) {
+  const today = todayStr();
+  const now = nowMinutes();
+  const s = minutesSinceMidnight(b.start), e = minutesSinceMidnight(b.end);
+  const overnight = e <= s;
+  const total = overnight ? (1440 - s + e) : (e - s);
+  if (total <= 0) return null;
+  if (!overnight) {
+    if (b.date === today && now >= s && now < e) return { elapsed: now - s, total };
+    return null;
+  }
+  if (b.date === today && now >= s) return { elapsed: now - s, total };
+  if (addDaysStr(b.date, 1) === today && now < e) return { elapsed: (1440 - s) + now, total };
+  return null;
+}
+
 function roomName(id) {
   const r = ROOMS.find(r => r.id === id);
   return r ? r.name : id;
 }
 
-// Get current/upcoming bookings for a room today
+// Get current/upcoming bookings for a room, handling overnight bookings
 function getRoomStatus(roomId) {
   const today = todayStr();
   const now = nowMinutes();
-  // Only confirmed bookings show on status page
-  const todayBookings = bookings.filter(b => b.room === roomId && b.date === today && (b.status === 'Confirmed' || !b.status));
-  todayBookings.sort((a,b) => minutesSinceMidnight(a.start) - minutesSinceMidnight(b.start));
+  const relevant = bookings.filter(b => b.room === roomId && (b.status === 'Confirmed' || !b.status));
 
-  // Find active booking
-  const active = todayBookings.find(b => {
-    const s = minutesSinceMidnight(b.start);
-    const e = minutesSinceMidnight(b.end);
-    return now >= s && now < e;
-  });
+  // Find a booking that's active right now (today, or spilling over from yesterday)
+  let activeBooking = null, activeInfo = null;
+  for (const b of relevant) {
+    const info = activeSpanInfo(b);
+    if (info) { activeBooking = b; activeInfo = info; break; }
+  }
 
-  if (active) {
-    const endMin = minutesSinceMidnight(active.end);
-    const startMin = minutesSinceMidnight(active.start);
-    const total = endMin - startMin;
-    const elapsed = now - startMin;
-    const remaining = endMin - now;
-    const pct = Math.min(100, Math.round((elapsed / total) * 100));
+  // Helper: bookings with a span starting later today (after now)
+  const upcomingToday = relevant
+    .filter(b => b !== activeBooking)
+    .map(b => {
+      const sp = bookingSpans(b).find(s => s.date === today && s.start > now);
+      return sp ? { b, start: sp.start } : null;
+    })
+    .filter(Boolean)
+    .sort((a, c) => a.start - c.start)
+    .map(x => x.b);
+
+  if (activeBooking) {
+    const remaining = activeInfo.total - activeInfo.elapsed;
+    const pct = Math.min(100, Math.round((activeInfo.elapsed / activeInfo.total) * 100));
     return {
       status: remaining <= 30 ? 'soon' : 'occupied',
-      booking: active,
+      booking: activeBooking,
       remaining,
       pct,
-      nextBookings: todayBookings.filter(b => minutesSinceMidnight(b.start) > now)
+      nextBookings: upcomingToday
     };
   }
 
-  // Next booking today
-  const next = todayBookings.find(b => minutesSinceMidnight(b.start) > now);
   return {
     status: 'free',
     booking: null,
     remaining: null,
     pct: 0,
-    nextBookings: next ? [next] : []
+    nextBookings: upcomingToday.slice(0, 1)
   };
 }
 
@@ -1477,30 +1548,27 @@ function renderTable() {
     return;
   }
 
-  const now = nowMinutes();
   let html = '';
   for (const b of filtered) {
-    const isToday = b.date === today;
-    const s = minutesSinceMidnight(b.start), e = minutesSinceMidnight(b.end);
     let statusBadge;
     if (b.status === 'Pending') {
       statusBadge = `<span class="status-badge" style="background:var(--warn-light);color:var(--warn)">Pending</span>`;
     } else if (b.status === 'Rejected') {
       statusBadge = `<span class="status-badge" style="background:var(--danger-light);color:var(--danger)">Rejected</span>`;
-    } else if (b.date < today || (isToday && e <= now)) {
-      statusBadge = `<span class="status-badge" style="background:#F0EDE6;color:var(--text-muted)">Past</span>`;
-    } else if (isToday && now >= s && now < e) {
-      statusBadge = `<span class="status-badge badge-occupied">Active</span>`;
     } else {
-      statusBadge = `<span class="status-badge badge-free">Upcoming</span>`;
+      const ts = bookingTimeStatus(b);
+      if (ts === 'past') statusBadge = `<span class="status-badge" style="background:#F0EDE6;color:var(--text-muted)">Past</span>`;
+      else if (ts === 'active') statusBadge = `<span class="status-badge badge-occupied">Active</span>`;
+      else statusBadge = `<span class="status-badge badge-free">Upcoming</span>`;
     }
+    const overnightTag = isOvernight(b) ? ' <span style="font-size:10px;color:var(--text-faint);font-weight:600">+1 day</span>' : '';
 
     html += `<tr>
       <td class="td-room">${escHtml(roomName(b.room))}</td>
       <td>${escHtml(b.booker)}</td>
       <td style="color:var(--text-muted)">${escHtml(b.purpose || '—')}</td>
       <td>${fmtDate(b.date)}</td>
-      <td style="white-space:nowrap">${fmtTime(b.start)} – ${fmtTime(b.end)}</td>
+      <td style="white-space:nowrap">${fmtTime(b.start)} – ${fmtTime(b.end)}${overnightTag}</td>
       <td>${b.attendees || '—'}</td>
       <td>${statusBadge}</td>
       <td>
@@ -1516,12 +1584,7 @@ function renderTable() {
 }
 
 function renderActiveNow() {
-  const today = todayStr();
-  const now = nowMinutes();
-  const active = bookings.filter(b => {
-    if (b.date !== today) return false;
-    return now >= minutesSinceMidnight(b.start) && now < minutesSinceMidnight(b.end);
-  });
+  const active = bookings.filter(b => bookingTimeStatus(b) === 'active');
   const el = document.getElementById('active-now-list');
   if (active.length === 0) {
     el.innerHTML = `<div style="font-size:13px;color:var(--text-faint);padding:8px 0;">No active bookings right now.</div>`;
@@ -1640,8 +1703,8 @@ async function submitBooking(e) {
   if (!room || !booker || !date || !start || !end) {
     showError('Please fill in all required fields.'); return;
   }
-  if (minutesSinceMidnight(end) <= minutesSinceMidnight(start)) {
-    showError('End time must be after start time.'); return;
+  if (minutesSinceMidnight(end) === minutesSinceMidnight(start)) {
+    showError('Start and end time cannot be the same.'); return;
   }
   if (isRecurring && !dateEnd) {
     showError('Please select an end date for the recurring range.'); return;
@@ -1657,13 +1720,7 @@ async function submitBooking(e) {
 
   // Single booking edit - simple conflict check
   if (id) {
-    const newS = minutesSinceMidnight(start);
-    const newE = minutesSinceMidnight(end);
-    const conflict = bookings.find(b => {
-      if (b.room !== room || b.date !== date) return false;
-      if (b.id === id) return false;
-      return newS < minutesSinceMidnight(b.end) && newE > minutesSinceMidnight(b.start);
-    });
+    const conflict = findConflict(room, date, start, end, id);
     if (conflict) {
       showError(`Conflict: ${roomName(room)} booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.`);
       return;
@@ -1681,16 +1738,11 @@ async function submitBooking(e) {
   }
 
   // Recurring / new booking — check conflicts per date
-  const newS = minutesSinceMidnight(start);
-  const newE = minutesSinceMidnight(end);
   const conflictDates = [];
   const cleanDates = [];
 
   for (const d of dates) {
-    const conflict = bookings.find(b => {
-      if (b.room !== room || b.date !== d) return false;
-      return newS < minutesSinceMidnight(b.end) && newE > minutesSinceMidnight(b.start);
-    });
+    const conflict = findConflict(room, d, start, end, null);
     if (conflict) conflictDates.push({ date: d, conflict });
     else cleanDates.push(d);
   }
@@ -1908,8 +1960,8 @@ async function submitRequest() {
     errEl.textContent = 'Please fill in all required fields.';
     errEl.classList.add('visible'); return;
   }
-  if (minutesSinceMidnight(end) <= minutesSinceMidnight(start)) {
-    errEl.textContent = 'End time must be after start time.';
+  if (minutesSinceMidnight(end) === minutesSinceMidnight(start)) {
+    errEl.textContent = 'Start and end time cannot be the same.';
     errEl.classList.add('visible'); return;
   }
   if (isRecurring && !dateEnd) {
@@ -2026,7 +2078,7 @@ async function modifyAndApprove(id) {
   const end = document.getElementById('mod-end-' + id).value;
   const attendees = document.getElementById('mod-att-' + id).value;
   if (!date || !start || !end) { toast('Please fill in all fields.', true); return; }
-  if (minutesSinceMidnight(end) <= minutesSinceMidnight(start)) { toast('End time must be after start time.', true); return; }
+  if (minutesSinceMidnight(end) === minutesSinceMidnight(start)) { toast('Start and end time cannot be the same.', true); return; }
   const b = { ...bookings[idx], date, start, end, attendees: attendees||'', status: 'Confirmed' };
   try {
     showLoadingOverlay(true);
@@ -2112,18 +2164,25 @@ function openSchedModal(roomId) {
     const isWeekend = d.getDay() === 0 || d.getDay() === 6;
 
     const dayBookings = bookings
-      .filter(b => b.room === roomId && b.date === ds && (b.status === 'Confirmed' || !b.status))
-      .sort((a, b) => minutesSinceMidnight(a.start) - minutesSinceMidnight(b.start));
+      .filter(b => (b.status === 'Confirmed' || !b.status) && b.room === roomId)
+      .map(b => ({ b, span: bookingSpans(b).find(sp => sp.date === ds) }))
+      .filter(x => x.span)
+      .sort((a, c) => a.span.start - c.span.start);
 
     let dayHtml = '';
     if (dayBookings.length === 0) {
       dayHtml = '<div class="sched-free-all">Fully available all day</div>';
     } else {
-      for (const b of dayBookings) {
-        const isPast = ds < todayStr() || (ds === todayStr() && minutesSinceMidnight(b.end) <= nowMinutes());
+      for (const { b, span } of dayBookings) {
+        const isPast = ds < todayStr() || (ds === todayStr() && span.end <= nowMinutes());
+        const overnightNote = isOvernight(b)
+          ? (span.start === 0
+              ? ' <span style="color:var(--text-faint);font-size:11px">(cont. from prev. day)</span>'
+              : ' <span style="color:var(--text-faint);font-size:11px">(continues next day)</span>')
+          : '';
         dayHtml += '<div class="sched-slot booked" style="display:flex;align-items:center;justify-content:space-between;gap:8px">' +
           '<div style="display:flex;align-items:center;gap:12px;flex:1">' +
-          '<div class="sched-slot-time">' + fmtTime(b.start) + ' – ' + fmtTime(b.end) + '</div>' +
+          '<div class="sched-slot-time">' + fmtTime(b.start) + ' – ' + fmtTime(b.end) + overnightNote + '</div>' +
           '<div class="sched-slot-info">' +
             '<div class="sched-slot-booker">' + escHtml(b.booker) + '</div>' +
             (b.purpose ? '<div class="sched-slot-purpose">' + escHtml(b.purpose) + (b.attendees ? ' &middot; ' + b.attendees + ' attendees' : '') + '</div>' : '') +
@@ -2356,18 +2415,18 @@ async function confirmCancelBooking() {
 // ===== EXPORT EXCEL =====
 function exportExcel() {
   const headers = ['Room','Floor','Booked By','Purpose','Date','Start Time','End Time','Attendees','Status'];
-  const today = todayStr();
-  const now = nowMinutes();
   const rows = [...bookings].sort((a,b) => {
     const da = a.date + a.start, db = b.date + b.start;
     return da < db ? -1 : da > db ? 1 : 0;
   }).map(b => {
     const room = ROOMS.find(r => r.id === b.room) || {};
-    const s = minutesSinceMidnight(b.start), e = minutesSinceMidnight(b.end);
     let status;
-    if (b.date < today || (b.date === today && e <= now)) status = 'Past';
-    else if (b.date === today && now >= s && now < e) status = 'Active';
-    else status = 'Upcoming';
+    if (b.status === 'Pending') status = 'Pending';
+    else if (b.status === 'Rejected') status = 'Rejected';
+    else {
+      const ts = bookingTimeStatus(b);
+      status = ts === 'past' ? 'Past' : ts === 'active' ? 'Active' : 'Upcoming';
+    }
     return {
       'Room': room.name || b.room,
       'Floor': room.floor || '',
