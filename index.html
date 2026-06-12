@@ -1090,7 +1090,7 @@ let deleteTargetId = null;
 let clockInterval = null;
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbzA0FGZx4fConiLtKK3lBcVYKXTJ4X4VVynVE5Pb3jjjO9O5GbJ790jt3H-uUdqiJmlpA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzXVaRCM7qLWgzBTUR__VD_Zn1BmVb8VzxEhMfDdNrTspV46o43QJHJGPpiFD-pRZGGMw/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -2334,7 +2334,8 @@ async function confirmCancelBooking() {
   document.getElementById('cancel-error').classList.remove('visible');
   try {
     showLoadingOverlay(true);
-    await apiDelete(_cancelBookingId);
+    // Mark as Cancelled in sheet — keeps record
+    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'cancel', BookingID: _cancelBookingId }) });
     bookings = bookings.filter(x => x.id !== _cancelBookingId);
     closeCancelModal();
     closeSchedModal();
