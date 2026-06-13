@@ -113,6 +113,12 @@
     min-width: 90px;
     text-align: right;
   }
+  @media (max-width: 600px) {
+    #clock { font-size: 11px; min-width: 60px; }
+    #occupancy-counter { display: none !important; }
+    .nav-title { font-size: 14px; }
+    .nav-tab { padding: 6px 10px; font-size: 13px; }
+  }
 
   /* PAGES */
   .page { display: none; }
@@ -257,6 +263,11 @@
     gap: 0;
     min-height: calc(100vh - 64px);
   }
+  @media (max-width: 768px) {
+    .admin-layout { grid-template-columns: 1fr; }
+    .admin-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    .admin-main { padding: 1rem; }
+  }
   .admin-sidebar {
     background: var(--surface);
     border-right: 1px solid var(--border);
@@ -377,9 +388,10 @@
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    overflow: hidden;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  table { width: 100%; border-collapse: collapse; }
+  table { width: 100%; border-collapse: collapse; min-width: 600px; }
   thead { background: var(--surface2); }
   th {
     text-align: left;
@@ -748,6 +760,136 @@
   .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
   select option { font-family: var(--font-body); }
 
+  @keyframes confettiFall {
+    0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+
+
+  /* TODAY'S TIMELINE */
+  .timeline-section {
+    padding: 0 2rem 1.5rem;
+  }
+  .timeline-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+  .timeline-title {
+    font-family: var(--font-display);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    color: var(--text);
+  }
+  .timeline-legend {
+    display: flex;
+    gap: 12px;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+  .timeline-legend-item { display: flex; align-items: center; gap: 4px; }
+  .timeline-legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .timeline-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .timeline-grid {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .timeline-table {
+    min-width: 900px;
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .timeline-room-col {
+    width: 120px;
+    min-width: 120px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    border-right: 2px solid var(--border);
+    border-bottom: 1px solid var(--border-light);
+    background: var(--surface);
+    white-space: nowrap;
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+  }
+  .timeline-room-floor {
+    font-size: 10px;
+    font-weight: 400;
+    color: var(--text-faint);
+    margin-top: 1px;
+  }
+  .timeline-hour-header {
+    font-size: 10px;
+    color: var(--text-faint);
+    padding: 4px 0;
+    text-align: left;
+    border-bottom: 1px solid var(--border-light);
+    border-right: 1px solid var(--border-light);
+    white-space: nowrap;
+    font-weight: 500;
+    padding-left: 4px;
+  }
+  .timeline-cell {
+    position: relative;
+    height: 36px;
+    border-bottom: 1px solid var(--border-light);
+    border-right: 1px solid var(--border-light);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .timeline-cell.current-hour {
+    background: rgba(30,74,60,0.04);
+  }
+  .timeline-block {
+    position: absolute;
+    top: 3px;
+    bottom: 3px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding: 0 5px;
+    font-size: 10px;
+    font-weight: 600;
+    overflow: hidden;
+    white-space: nowrap;
+    cursor: default;
+    z-index: 1;
+  }
+  .timeline-block.confirmed { background: #C0392B; color: white; }
+  .timeline-block.ending-soon { background: #C07D00; color: white; }
+  .timeline-now-line {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--accent);
+    z-index: 1;
+    pointer-events: none;
+  }
+  .timeline-now-dot {
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+  @media (max-width: 768px) {
+    .timeline-section { padding: 0 1rem 1rem; }
+  }
+
+
   .cancel-modal-box { background:var(--surface);border-radius:var(--radius-lg);padding:1.5rem;width:420px;max-width:calc(100vw - 2rem);border:1px solid var(--border); }
   .cancel-booking-card { background:var(--bg);border-radius:var(--radius);padding:12px;margin:12px 0;font-size:13px;border:1px solid var(--border-light); }
   .cancel-booking-card .room-name { font-size:15px;font-weight:700; }
@@ -806,7 +948,7 @@
     <button class="nav-tab" id="admin-btn" onclick="requireAdmin()">Admin Panel<span class="nav-pending-dot" id="nav-pending-dot" style="display:none"></span></button>
   </div>
   <div class="nav-right">
-    <div id="clock">—</div>
+    <div id="occupancy-counter" style="font-size:13px;font-weight:600;color:var(--ok);margin-right:12px;"></div><div id="clock">—</div>
   </div>
 </nav>
 
@@ -828,6 +970,27 @@
     <div class="legend-item"><div class="legend-dot" style="background:#C0392B"></div>Occupied</div>
     <div class="legend-item"><div class="legend-dot" style="background:#C07D00"></div>Ending in &lt;30 min</div>
   </div>
+
+  <!-- TODAY'S TIMELINE -->
+  <div class="timeline-section" id="timeline-section">
+    <div class="timeline-header" onclick="toggleTimeline()" style="cursor:pointer;user-select:none;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="timeline-title">Today's Schedule</div>
+        <span id="timeline-toggle-icon" style="font-size:12px;color:var(--text-muted);transition:transform 0.2s;">▼</span>
+      </div>
+      <div class="timeline-legend" id="timeline-legend">
+        <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#C0392B"></div>Occupied</div>
+        <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#C07D00"></div>Ending Soon</div>
+        <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:var(--border-light)"></div>Available</div>
+      </div>
+    </div>
+    <div class="timeline-wrap" id="timeline-wrap" style="display:none">
+      <div class="timeline-grid">
+        <table class="timeline-table" id="timeline-table"></table>
+      </div>
+    </div>
+  </div>
+
   <div class="rooms-grid" id="rooms-grid"></div>
 </div>
 
@@ -1509,6 +1672,15 @@ function renderStatusGrid() {
   document.getElementById('count-free').textContent = freeCount + ' available';
   document.getElementById('count-occ').textContent = occCount + ' occupied';
   document.getElementById('count-soon').textContent = soonCount + ' ending soon';
+  // Update nav occupancy counter
+  const total = ROOMS.length;
+  const availCount = freeCount + soonCount;
+  const occEl = document.getElementById('occupancy-counter');
+  if (occEl) {
+    occEl.textContent = availCount + '/' + total + ' Available';
+    occEl.style.color = availCount > total/2 ? 'var(--ok)' : availCount > 0 ? 'var(--warn)' : 'var(--danger)';
+  }
+  renderTimeline();
 }
 
 // ===== ADMIN TABLE =====
@@ -1757,6 +1929,7 @@ async function submitBooking(e) {
         await apiCreate(booking);
       }
       toast(dates.length === 1 ? 'Room booked successfully.' : `${dates.length} recurring bookings created (Mon–Fri).`);
+      launchConfetti();
     } catch(err) { toast('Error saving. Try again.', true); } finally { showLoadingOverlay(false); }
     resetForm(); renderTable(); renderActiveNow(); renderStatusGrid();
   } else {
@@ -1990,6 +2163,7 @@ async function submitRequest() {
     }
     document.getElementById('req-form-view').style.display = 'none';
     document.getElementById('req-confirm-view').style.display = '';
+    launchConfetti();
     updatePendingDot();
   } catch(e) {
     errEl.textContent = 'Error submitting request. Please try again.';
@@ -2065,6 +2239,7 @@ async function approvePending(id) {
     bookings[idx].status = 'Confirmed';
     await apiUpdateStatus(id, 'Confirmed');
     toast('Booking approved ✅');
+    launchConfetti();
   } catch(e) { toast('Error approving booking.', true); }
   finally { showLoadingOverlay(false); }
   renderPendingRequests(); renderTable(); renderStatusGrid();
@@ -2336,6 +2511,7 @@ async function confirmConflictResolution() {
     let msg = `${count} booking(s) created.`;
     if (skipped > 0) msg += ` ${skipped} date(s) skipped.`;
     toast(msg);
+    launchConfetti();
   } catch(err) {
     toast('Error saving bookings. Try again.', true);
   } finally {
@@ -2404,6 +2580,137 @@ async function confirmCancelBooking() {
     showLoadingOverlay(false);
   }
   _cancelBookingId = null;
+}
+
+
+
+function toggleTimeline() {
+  const wrap = document.getElementById('timeline-wrap');
+  const icon = document.getElementById('timeline-toggle-icon');
+  const isHidden = wrap.style.display === 'none';
+  wrap.style.display = isHidden ? 'block' : 'none';
+  icon.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+  if (isHidden) renderTimeline();
+}
+
+// ===== TODAY'S TIMELINE =====
+function renderTimeline() {
+  const table = document.getElementById('timeline-table');
+  if (!table) return;
+  const today = todayStr();
+  const now = nowMinutes();
+  const START_HOUR = 0;  // 12 AM
+  const END_HOUR = 24;   // 12 AM next day
+  const HOURS = END_HOUR - START_HOUR;
+  const CELL_MINS = 60;
+
+  // Header row
+  let headerRow = '<tr><th class="timeline-room-col" style="border-bottom:1px solid var(--border-light)">Room</th>';
+  for (let h = START_HOUR; h < END_HOUR; h++) {
+    const label = h === 0 ? '12 AM' : h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h-12) + ' PM';
+    headerRow += `<th class="timeline-hour-header">${label}</th>`;
+  }
+  headerRow += '</tr>';
+
+  // Room rows
+  let rows = '';
+  for (const room of ROOMS) {
+    const todayBookings = bookings.filter(b =>
+      b.room === room.id && b.date === today && (b.status === 'Confirmed' || !b.status)
+    );
+
+    let cells = '';
+    for (let h = START_HOUR; h < END_HOUR; h++) {
+      const cellStart = h * 60;
+      const cellEnd = cellStart + CELL_MINS;
+      const isCurrent = now >= cellStart && now < cellEnd;
+
+      // Find bookings that overlap this cell
+      const overlapping = todayBookings.filter(b => {
+        const spans = getBookingSpansLocal(b);
+        return spans.some(s => s.date === today && s.start < cellEnd && s.end > cellStart);
+      });
+
+      let blocksHtml = '';
+      for (const b of overlapping) {
+        const spans = getBookingSpansLocal(b).filter(s => s.date === today);
+        for (const span of spans) {
+          if (span.start >= cellEnd || span.end <= cellStart) continue;
+          const blockStart = Math.max(span.start, cellStart);
+          const blockEnd = Math.min(span.end, cellEnd);
+          const leftPct = ((blockStart - cellStart) / CELL_MINS) * 100;
+          const widthPct = ((blockEnd - blockStart) / CELL_MINS) * 100;
+          const remaining = span.end - now;
+          const cls = remaining <= 30 && now >= span.start ? 'ending-soon' : 'confirmed';
+          blocksHtml += `<div class="timeline-block ${cls}" style="left:${leftPct}%;width:${widthPct}%" title="${escHtml(b.booker)}${b.purpose ? ' — ' + b.purpose : ''}">${widthPct > 15 ? escHtml(b.booker) : ''}</div>`;
+        }
+      }
+
+      // Now line
+      let nowLine = '';
+      if (isCurrent) {
+        const nowPct = ((now - cellStart) / CELL_MINS) * 100;
+        nowLine = `<div class="timeline-now-line" style="left:${nowPct}%"><div class="timeline-now-dot"></div></div>`;
+      }
+
+      cells += `<td class="timeline-cell${isCurrent ? ' current-hour' : ''}">${blocksHtml}${nowLine}</td>`;
+    }
+
+    rows += `<tr>
+      <td class="timeline-room-col">
+        ${escHtml(room.name)}
+        <div class="timeline-room-floor">${escHtml(room.floor)}</div>
+      </td>
+      ${cells}
+    </tr>`;
+  }
+
+  table.innerHTML = headerRow + rows;
+}
+
+function getBookingSpansLocal(b) {
+  const s = minutesSinceMidnight(b.start);
+  const e = minutesSinceMidnight(b.end);
+  if (e > s) return [{ date: b.date, start: s, end: e }];
+  // Overnight
+  const spans = [{ date: b.date, start: s, end: 1440 }];
+  if (e > 0) spans.push({ date: addDaysStr(b.date, 1), start: 0, end: e });
+  return spans;
+}
+
+
+// ===== CONFETTI =====
+function launchConfetti() {
+  const colors = ['#1E4A3C','#2E6B56','#C0392B','#F39C12','#3498DB','#9B59B6','#1ABC9C'];
+  const container = document.createElement('div');
+  container.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden;';
+  document.body.appendChild(container);
+
+  for (let i = 0; i < 80; i++) {
+    const piece = document.createElement('div');
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const size = Math.random() * 8 + 5;
+    const left = Math.random() * 100;
+    const delay = Math.random() * 0.6;
+    const duration = Math.random() * 1.5 + 1.5;
+    const rotation = Math.random() * 360;
+    const shape = Math.random() > 0.5 ? '50%' : '0';
+
+    piece.style.cssText = `
+      position:absolute;
+      width:${size}px;height:${size}px;
+      background:${color};
+      border-radius:${shape};
+      left:${left}%;top:-10px;
+      opacity:1;
+      animation:confettiFall ${duration}s ${delay}s ease-in forwards;
+      transform:rotate(${rotation}deg);
+    `;
+    container.appendChild(piece);
+  }
+
+  // Remove after animation
+  setTimeout(() => container.remove(), 3500);
 }
 
 // ===== EXPORT EXCEL =====
