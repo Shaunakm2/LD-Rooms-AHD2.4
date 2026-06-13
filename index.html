@@ -791,6 +791,32 @@
   }
   .timeline-legend-item { display: flex; align-items: center; gap: 4px; }
   .timeline-legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .timeline-day-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2px;
+    margin-right: 8px;
+  }
+  .tl-day-btn {
+    border: none;
+    background: transparent;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-family: var(--font-body);
+  }
+  .tl-day-btn.active {
+    background: var(--surface);
+    color: var(--accent);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+  }
+  .tl-day-btn:hover:not(.active) { color: var(--text); }
   .timeline-wrap {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -979,6 +1005,11 @@
         <span id="timeline-toggle-icon" style="font-size:12px;color:var(--text-muted);transition:transform 0.2s;">▼</span>
       </div>
       <div class="timeline-legend" id="timeline-legend">
+        <div class="timeline-day-toggle" id="timeline-day-toggle" onclick="event.stopPropagation()">
+          <button class="tl-day-btn" data-offset="-1" onclick="setTimelineDay(-1)">Yesterday</button>
+          <button class="tl-day-btn active" data-offset="0" onclick="setTimelineDay(0)">Today</button>
+          <button class="tl-day-btn" data-offset="1" onclick="setTimelineDay(1)">Tomorrow</button>
+        </div>
         <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#C0392B"></div>Occupied</div>
         <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#C07D00"></div>Ending Soon</div>
         <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:var(--border-light)"></div>Available</div>
@@ -1091,10 +1122,17 @@
           <button class="btn btn-ghost" onclick="exportExcel()" style="white-space:nowrap">&#8595; Export Excel</button>
         </div>
       </div>
+      <div id="bulk-action-bar" style="display:none;align-items:center;gap:10px;background:var(--accent-light);border:1px solid #C2D9D1;border-radius:var(--radius);padding:8px 12px;margin-bottom:10px;font-size:13px;">
+        <span id="bulk-count-label" style="font-weight:600;color:var(--accent)"></span>
+        <button class="btn btn-sm btn-approve" onclick="bulkApprove()">✅ Approve Selected</button>
+        <button class="btn btn-sm btn-reject" onclick="bulkDelete()">🗑️ Delete Selected</button>
+        <button class="btn btn-sm btn-ghost" onclick="clearSelection()">Clear</button>
+      </div>
       <div class="table-wrap">
         <table id="bookings-table">
           <thead>
             <tr>
+              <th style="width:32px"><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this)"></th>
               <th>Room</th>
               <th>Booked By</th>
               <th>Purpose</th>
@@ -1683,7 +1721,83 @@ function renderStatusGrid() {
   renderTimeline();
 }
 
-// ===== ADMIN TABLE =====
+// ===== BULK SELECTION (Admin) =====
+let selectedBookingIds = new Set();
+
+function toggleRowSelect(id, checkbox) {
+  if (checkbox.checked) selectedBookingIds.add(id);
+  else selectedBookingIds.delete(id);
+  const allBoxes = document.querySelectorAll('.row-checkbox');
+  const allChecked = allBoxes.length > 0 && Array.from(allBoxes).every(c => c.checked);
+  document.getElementById('select-all-checkbox').checked = allChecked;
+  updateBulkBar();
+}
+
+function toggleSelectAll(checkbox) {
+  document.querySelectorAll('.row-checkbox').forEach(c => {
+    c.checked = checkbox.checked;
+    if (checkbox.checked) selectedBookingIds.add(c.dataset.id);
+    else selectedBookingIds.delete(c.dataset.id);
+  });
+  updateBulkBar();
+}
+
+function clearSelection() {
+  selectedBookingIds.clear();
+  document.querySelectorAll('.row-checkbox').forEach(c => c.checked = false);
+  const selectAll = document.getElementById('select-all-checkbox');
+  if (selectAll) selectAll.checked = false;
+  updateBulkBar();
+}
+
+function updateBulkBar() {
+  const bar = document.getElementById('bulk-action-bar');
+  const count = selectedBookingIds.size;
+  const allBoxes = document.querySelectorAll('.row-checkbox');
+  const selectAll = document.getElementById('select-all-checkbox');
+  if (selectAll) selectAll.checked = allBoxes.length > 0 && Array.from(allBoxes).every(c => c.checked);
+  if (count === 0) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('bulk-count-label').textContent = `${count} selected`;
+}
+
+async function bulkApprove() {
+  const ids = [...selectedBookingIds].filter(id => {
+    const b = bookings.find(x => x.id === id);
+    return b && b.status === 'Pending';
+  });
+  if (ids.length === 0) { toast('No pending bookings in selection.', true); return; }
+  try {
+    showLoadingOverlay(true);
+    for (const id of ids) {
+      const idx = bookings.findIndex(b => b.id === id);
+      if (idx !== -1) bookings[idx].status = 'Confirmed';
+      await apiUpdateStatus(id, 'Confirmed');
+    }
+    toast(`${ids.length} booking(s) approved ✅`);
+  } catch(e) { toast('Error approving bookings.', true); }
+  finally { showLoadingOverlay(false); }
+  clearSelection();
+  renderTable(); renderActiveNow(); renderStatusGrid(); renderPendingRequests();
+}
+
+async function bulkDelete() {
+  const ids = [...selectedBookingIds];
+  if (ids.length === 0) return;
+  if (!confirm(`Delete ${ids.length} selected booking(s)? This cannot be undone.`)) return;
+  try {
+    showLoadingOverlay(true);
+    for (const id of ids) {
+      bookings = bookings.filter(b => b.id !== id);
+      await apiDelete(id);
+    }
+    toast(`${ids.length} booking(s) deleted.`);
+  } catch(e) { toast('Error deleting bookings.', true); }
+  finally { showLoadingOverlay(false); }
+  clearSelection();
+  renderTable(); renderActiveNow(); renderStatusGrid(); renderPendingRequests();
+}
+
 function renderTable() {
   const tbody = document.getElementById('table-body');
   const search = document.getElementById('search-input').value.toLowerCase().trim();
@@ -1712,11 +1826,12 @@ function renderTable() {
   });
 
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       <div>No bookings found.</div>
     </div></td></tr>`;
     document.getElementById('table-count').textContent = '';
+    updateBulkBar();
     return;
   }
 
@@ -1735,7 +1850,9 @@ function renderTable() {
     }
     const overnightTag = isOvernight(b) ? ' <span style="font-size:10px;color:var(--text-faint);font-weight:600">+1 day</span>' : '';
 
+    const checked = selectedBookingIds.has(b.id) ? 'checked' : '';
     html += `<tr>
+      <td><input type="checkbox" class="row-checkbox" data-id="${b.id}" ${checked} onchange="toggleRowSelect('${b.id}', this)"></td>
       <td class="td-room">${escHtml(roomName(b.room))}</td>
       <td>${escHtml(b.booker)}</td>
       <td style="color:var(--text-muted)">${escHtml(b.purpose || '—')}</td>
@@ -1753,6 +1870,7 @@ function renderTable() {
   }
   tbody.innerHTML = html;
   document.getElementById('table-count').textContent = `Showing ${filtered.length} of ${bookings.length} booking${bookings.length !== 1 ? 's' : ''}`;
+  updateBulkBar();
 }
 
 function renderActiveNow() {
@@ -1843,15 +1961,18 @@ function toggleRecurring() {
   }
 }
 
-function getWeekdays(startStr, endStr) {
+function getWeekdays(startStr, endStr, bookingEndTime) {
   const dates = [];
   const start = new Date(startStr + 'T00:00:00');
   const end = new Date(endStr + 'T00:00:00');
   if (end < start) return dates;
+  // US-shift exception: if the booking ends by 4 AM, treat Saturday as a valid
+  // weekday slot too (it's really Friday night's shift spilling into Saturday morning).
+  const allowSaturday = bookingEndTime && minutesSinceMidnight(bookingEndTime) > 0 && minutesSinceMidnight(bookingEndTime) <= 240;
   const cur = new Date(start);
   while (cur <= end) {
     const day = cur.getDay();
-    if (day !== 0 && day !== 6) {
+    if (day !== 0 && (day !== 6 || allowSaturday)) {
       dates.push(localDateStr(cur));
     }
     cur.setDate(cur.getDate() + 1);
@@ -1885,7 +2006,7 @@ async function submitBooking(e) {
     showError('End date must be on or after start date.'); return;
   }
 
-  const dates = isRecurring ? getWeekdays(date, dateEnd) : [date];
+  const dates = isRecurring ? getWeekdays(date, dateEnd, end) : [date];
   if (dates.length === 0) { showError('No weekdays found in selected range.'); return; }
 
   document.getElementById('form-error').classList.remove('visible');
@@ -1929,7 +2050,6 @@ async function submitBooking(e) {
         await apiCreate(booking);
       }
       toast(dates.length === 1 ? 'Room booked successfully.' : `${dates.length} recurring bookings created (Mon–Fri).`);
-      launchConfetti();
     } catch(err) { toast('Error saving. Try again.', true); } finally { showLoadingOverlay(false); }
     resetForm(); renderTable(); renderActiveNow(); renderStatusGrid();
   } else {
@@ -2148,7 +2268,7 @@ async function submitRequest() {
   errEl.classList.remove('visible');
   reqSubmitting = true;
 
-  const dates = isRecurring ? getWeekdays(date, dateEnd) : [date];
+  const dates = isRecurring ? getWeekdays(date, dateEnd, end) : [date];
   if (dates.length === 0) {
     errEl.textContent = 'No weekdays found in selected range.';
     errEl.classList.add('visible'); return;
@@ -2239,7 +2359,6 @@ async function approvePending(id) {
     bookings[idx].status = 'Confirmed';
     await apiUpdateStatus(id, 'Confirmed');
     toast('Booking approved ✅');
-    launchConfetti();
   } catch(e) { toast('Error approving booking.', true); }
   finally { showLoadingOverlay(false); }
   renderPendingRequests(); renderTable(); renderStatusGrid();
@@ -2511,7 +2630,6 @@ async function confirmConflictResolution() {
     let msg = `${count} booking(s) created.`;
     if (skipped > 0) msg += ` ${skipped} date(s) skipped.`;
     toast(msg);
-    launchConfetti();
   } catch(err) {
     toast('Error saving bookings. Try again.', true);
   } finally {
@@ -2584,6 +2702,8 @@ async function confirmCancelBooking() {
 
 
 
+let timelineDayOffset = 0; // 0=today, -1=yesterday, 1=tomorrow
+
 function toggleTimeline() {
   const wrap = document.getElementById('timeline-wrap');
   const icon = document.getElementById('timeline-toggle-icon');
@@ -2593,11 +2713,20 @@ function toggleTimeline() {
   if (isHidden) renderTimeline();
 }
 
+function setTimelineDay(offset) {
+  timelineDayOffset = offset;
+  document.querySelectorAll('.tl-day-btn').forEach(btn => {
+    btn.classList.toggle('active', Number(btn.dataset.offset) === offset);
+  });
+  renderTimeline();
+}
+
 // ===== TODAY'S TIMELINE =====
 function renderTimeline() {
   const table = document.getElementById('timeline-table');
   if (!table) return;
-  const today = todayStr();
+  const targetDate = addDaysStr(todayStr(), timelineDayOffset);
+  const isToday = timelineDayOffset === 0;
   const now = nowMinutes();
   const START_HOUR = 0;  // 12 AM
   const END_HOUR = 24;   // 12 AM next day
@@ -2615,25 +2744,28 @@ function renderTimeline() {
   // Room rows
   let rows = '';
   for (const room of ROOMS) {
-    const todayBookings = bookings.filter(b =>
-      b.room === room.id && b.date === today && (b.status === 'Confirmed' || !b.status)
+    // Include bookings from the prior/next day too, in case their overnight span lands on targetDate
+    const candidateBookings = bookings.filter(b =>
+      b.room === room.id &&
+      (b.status === 'Confirmed' || !b.status) &&
+      (b.date === targetDate || b.date === addDaysStr(targetDate, -1) || b.date === addDaysStr(targetDate, 1))
     );
 
     let cells = '';
     for (let h = START_HOUR; h < END_HOUR; h++) {
       const cellStart = h * 60;
       const cellEnd = cellStart + CELL_MINS;
-      const isCurrent = now >= cellStart && now < cellEnd;
+      const isCurrent = isToday && now >= cellStart && now < cellEnd;
 
       // Find bookings that overlap this cell
-      const overlapping = todayBookings.filter(b => {
+      const overlapping = candidateBookings.filter(b => {
         const spans = getBookingSpansLocal(b);
-        return spans.some(s => s.date === today && s.start < cellEnd && s.end > cellStart);
+        return spans.some(s => s.date === targetDate && s.start < cellEnd && s.end > cellStart);
       });
 
       let blocksHtml = '';
       for (const b of overlapping) {
-        const spans = getBookingSpansLocal(b).filter(s => s.date === today);
+        const spans = getBookingSpansLocal(b).filter(s => s.date === targetDate);
         for (const span of spans) {
           if (span.start >= cellEnd || span.end <= cellStart) continue;
           const blockStart = Math.max(span.start, cellStart);
@@ -2641,7 +2773,7 @@ function renderTimeline() {
           const leftPct = ((blockStart - cellStart) / CELL_MINS) * 100;
           const widthPct = ((blockEnd - blockStart) / CELL_MINS) * 100;
           const remaining = span.end - now;
-          const cls = remaining <= 30 && now >= span.start ? 'ending-soon' : 'confirmed';
+          const cls = isToday && remaining <= 30 && now >= span.start ? 'ending-soon' : 'confirmed';
           blocksHtml += `<div class="timeline-block ${cls}" style="left:${leftPct}%;width:${widthPct}%" title="${escHtml(b.booker)}${b.purpose ? ' — ' + b.purpose : ''}">${widthPct > 15 ? escHtml(b.booker) : ''}</div>`;
         }
       }
