@@ -1408,7 +1408,7 @@ let clockInterval = null;
 let timelineDay = 'today'; // 'yesterday' | 'today' | 'tomorrow'
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycby3QrKCgoPTtTF3AxO84u39bhbd7-eUXNH65gpUYCDtqwstXiULg8tWlaxSm2lGjBpIKA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzpjvtXUCQUUIQGq12Vx3bMxb3G7FRzrIgEM8LQg-8JZ3n_BJvKwI939xguq-0bDkvdrg/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -1862,7 +1862,7 @@ function renderTable() {
   // Sort: upcoming first
   filtered.sort((a,b) => {
     const da = a.date + a.start, db = b.date + b.start;
-    return da < db ? -1 : da > db ? 1 : 0;
+    return da > db ? -1 : da < db ? 1 : 0;
   });
 
   if (filtered.length === 0) {
