@@ -1510,11 +1510,12 @@ let _writeCompletedAt = 0;
 async function apiPost(payload) {
   _writePending = true;
   try {
-    const params = new URLSearchParams({ data: JSON.stringify(payload) });
-    // Apps Script requires GET from external origins (CORS blocks POST).
-    // Use no-cors so the browser doesn't block it; we can't read the response
-    // but the request reaches the server and executes successfully.
-    await fetch(API_URL + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
+    await fetch(API_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
     _writeCompletedAt = Date.now();
   } catch(e) {
     console.error('apiPost failed:', e);
