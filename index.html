@@ -1408,7 +1408,7 @@ let clockInterval = null;
 let timelineDay = 'today'; // 'yesterday' | 'today' | 'tomorrow'
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbxeYJkE-0mKR4AO54R9k89AtCQKjTCvNRYYjQK9ZuSO9uPWsxwD4TgYVWacFgy-YgBWag/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzpjvtXUCQUUIQGq12Vx3bMxb3G7FRzrIgEM8LQg-8JZ3n_BJvKwI939xguq-0bDkvdrg/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -1540,7 +1540,10 @@ async function apiUpdateStatus(id, status) {
 }
 
 async function apiUpdate(b) {
-  await apiPost({ action: 'update', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed' });
+  await apiPost({ action: 'delete', BookingID: b.id });
+  // Small delay to ensure delete commits before create
+  await new Promise(r => setTimeout(r, 1500));
+  await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed' });
 }
 
 async function apiDelete(id) {
@@ -2445,7 +2448,9 @@ async function modifyAndApprove(id) {
   try {
     showLoadingOverlay(true);
     bookings[idx] = b;
-    await apiPost({ action: 'update', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed' });
+    await apiPost({ action: 'delete', BookingID: b.id });
+    await new Promise(r => setTimeout(r, 1500));
+    await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed' });
     toast('Booking modified & approved ✅');
   } catch(e) { toast('Error updating booking.', true); }
   finally { showLoadingOverlay(false); }
