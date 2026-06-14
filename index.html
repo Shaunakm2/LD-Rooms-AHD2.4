@@ -1415,6 +1415,7 @@ async function saveData() {
 }
 
 async function loadData(silent = false) {
+  if (_writePending) return;
   try {
     if (!silent) showLoadingOverlay(true);
     const res = await fetch(API_URL);
@@ -1501,23 +1502,21 @@ async function loadData(silent = false) {
   }
 }
 
+let _writePending = false;
+
 async function apiPost(payload) {
+  _writePending = true;
   await fetch(API_URL, {
     method: 'POST',
     mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(payload)
   });
+  setTimeout(() => { _writePending = false; }, 8000);
 }
 
 async function apiCreate(b) {
-  await apiPost({
-    action: 'create',
-    BookingID: b.id, Room: b.room, BookedBy: b.booker,
-    Purpose: b.purpose || '', BookingDate: b.date,
-    StartTime: b.start, EndTime: b.end,
-    Attendees: b.attendees || '', Status: b.status || 'Confirmed'
-  });
+  await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed' });
 }
 
 async function apiUpdateStatus(id, status) {
@@ -1525,13 +1524,7 @@ async function apiUpdateStatus(id, status) {
 }
 
 async function apiUpdate(b) {
-  await apiPost({
-    action: 'update',
-    BookingID: b.id, Room: b.room, BookedBy: b.booker,
-    Purpose: b.purpose || '', BookingDate: b.date,
-    StartTime: b.start, EndTime: b.end,
-    Attendees: b.attendees || '', Status: b.status || 'Confirmed'
-  });
+  await apiPost({ action: 'update', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed' });
 }
 
 async function apiDelete(id) {
@@ -2438,11 +2431,7 @@ async function modifyAndApprove(id) {
   try {
     showLoadingOverlay(true);
     bookings[idx] = b;
-    await apiPost({
-      action: 'update', BookingID: b.id, Room: b.room, BookedBy: b.booker,
-      Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start,
-      EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed'
-    });
+    await apiPost({ action: 'update', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed' });
     toast('Booking modified & approved ✅');
   } catch(e) { toast('Error updating booking.', true); }
   finally { showLoadingOverlay(false); }
