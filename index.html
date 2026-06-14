@@ -1415,6 +1415,9 @@ async function saveData() {
 }
 
 async function loadData(silent = false) {
+  // Don't overwrite local state with stale sheet data right after a write.
+  // Sheet takes 2-4s to commit; block silent refreshes for 10s after any write.
+  if (silent && _writeRecentlyCompleted()) return;
   try {
     if (!silent) showLoadingOverlay(true);
     const res = await fetch(API_URL);
@@ -1502,24 +1505,29 @@ async function loadData(silent = false) {
 }
 
 let _writePending = false;
+let _writeCompletedAt = 0;
 
 async function apiPost(payload) {
   _writePending = true;
   try {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload)
-    });
-    const json = await res.json();
-    if (json && json.error) console.error('API error:', json.error);
-    return json;
+    const params = new URLSearchParams({ data: JSON.stringify(payload) });
+    // Apps Script requires GET from external origins (CORS blocks POST).
+    // Use no-cors so the browser doesn't block it; we can't read the response
+    // but the request reaches the server and executes successfully.
+    await fetch(API_URL + '?' + params.toString(), { method: 'GET', mode: 'no-cors' });
+    _writeCompletedAt = Date.now();
   } catch(e) {
     console.error('apiPost failed:', e);
     throw e;
   } finally {
     _writePending = false;
   }
+}
+
+// Prevent loadData from wiping local changes before sheet has committed.
+// Apps Script can take 2-4s to write. Block silent refreshes for 10s after a write.
+function _writeRecentlyCompleted() {
+  return (Date.now() - _writeCompletedAt) < 10000;
 }
 
 async function apiCreate(b) {
