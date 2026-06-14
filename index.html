@@ -1408,14 +1408,13 @@ let clockInterval = null;
 let timelineDay = 'today'; // 'yesterday' | 'today' | 'tomorrow'
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbzpjvtXUCQUUIQGq12Vx3bMxb3G7FRzrIgEM8LQg-8JZ3n_BJvKwI939xguq-0bDkvdrg/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzXVaRCM7qLWgzBTUR__VD_Zn1BmVb8VzxEhMfDdNrTspV46o43QJHJGPpiFD-pRZGGMw/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
 }
 
 async function loadData(silent = false) {
-  if (_writePending) return;
   try {
     if (!silent) showLoadingOverlay(true);
     const res = await fetch(API_URL);
@@ -1507,10 +1506,19 @@ let _writePending = false;
 async function apiPost(payload) {
   _writePending = true;
   try {
-    const params = new URLSearchParams({ data: JSON.stringify(payload) });
-    await fetch(API_URL + '?' + params.toString());
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload)
+    });
+    const json = await res.json();
+    if (json && json.error) console.error('API error:', json.error);
+    return json;
+  } catch(e) {
+    console.error('apiPost failed:', e);
+    throw e;
   } finally {
-    setTimeout(() => { _writePending = false; }, 8000);
+    _writePending = false;
   }
 }
 
