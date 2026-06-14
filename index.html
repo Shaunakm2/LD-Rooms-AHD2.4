@@ -1408,7 +1408,7 @@ let clockInterval = null;
 let timelineDay = 'today'; // 'yesterday' | 'today' | 'tomorrow'
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbzXVaRCM7qLWgzBTUR__VD_Zn1BmVb8VzxEhMfDdNrTspV46o43QJHJGPpiFD-pRZGGMw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzpjvtXUCQUUIQGq12Vx3bMxb3G7FRzrIgEM8LQg-8JZ3n_BJvKwI939xguq-0bDkvdrg/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -2149,10 +2149,8 @@ async function doLogin() {
   if (!pw) return;
   try {
     showLoadingOverlay(true);
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      body: JSON.stringify({ action: 'verifyAdmin', password: pw })
-    });
+    const params = new URLSearchParams({ data: JSON.stringify({ action: 'verifyAdmin', password: pw }) });
+    const res = await fetch(API_URL + '?' + params.toString());
     const data = await res.json();
     if (data.ok) {
       adminLoggedIn = true;
