@@ -724,6 +724,49 @@
     vertical-align: middle;
   }
 
+  /* BULK ACTION BAR */
+  .bulk-bar {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--accent-light);
+    border: 1px solid #C2D9D1;
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+  .bulk-bar.visible { display: flex; }
+  .bulk-bar-count { font-size: 13px; font-weight: 600; color: var(--accent); flex: 1; }
+  .cb-cell { width: 36px; text-align: center; }
+  .booking-cb {
+    width: 15px; height: 15px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* Timeline block tooltip */
+  .tl-tooltip {
+    position: fixed;
+    background: var(--text);
+    color: var(--surface);
+    padding: 8px 12px;
+    border-radius: var(--radius);
+    font-size: 12px;
+    line-height: 1.5;
+    max-width: 220px;
+    z-index: 500;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  .tl-tooltip.visible { opacity: 1; }
+  .tl-tooltip-room { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+  .tl-tooltip-time { color: rgba(255,255,255,0.7); font-size: 11px; }
+  .tl-tooltip-purpose { margin-top: 4px; color: rgba(255,255,255,0.85); }
+  .tl-tooltip-att { color: rgba(255,255,255,0.6); font-size: 11px; margin-top: 2px; }
+
   /* PRINT */
   @media print {
     nav, .nav-tabs, #admin-btn { display: none; }
@@ -766,6 +809,38 @@
   }
 
 
+  .timeline-day-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .tl-tab {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: var(--font-body);
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+  }
+  .tl-tab:hover { color: var(--text); }
+  .tl-tab-active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  @media (max-width: 600px) {
+    .timeline-legend { display: none; }
+    .tl-tab { padding: 4px 8px; font-size: 11px; }
+  }
+
   /* TODAY'S TIMELINE */
   .timeline-section {
     padding: 0 2rem 1.5rem;
@@ -791,120 +866,136 @@
   }
   .timeline-legend-item { display: flex; align-items: center; gap: 4px; }
   .timeline-legend-dot { width: 8px; height: 8px; border-radius: 2px; }
-  .timeline-day-toggle {
-    display: flex;
-    gap: 2px;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 2px;
-    margin-right: 8px;
-  }
-  .tl-day-btn {
-    border: none;
-    background: transparent;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 4px 10px;
-    border-radius: 5px;
-    cursor: pointer;
-    color: var(--text-muted);
-    font-family: var(--font-body);
-  }
-  .tl-day-btn.active {
-    background: var(--surface);
-    color: var(--accent);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-  }
-  .tl-day-btn:hover:not(.active) { color: var(--text); }
   .timeline-wrap {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     overflow: hidden;
   }
-  .timeline-grid {
+
+  /* Continuous bar timeline */
+  .tl-bar-container {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  .timeline-table {
-    min-width: 900px;
-    width: 100%;
-    border-collapse: collapse;
+  .tl-bar-inner {
+    min-width: 700px;
+    padding: 0 0 8px;
   }
-  .timeline-room-col {
-    width: 120px;
-    min-width: 120px;
-    padding: 6px 10px;
-    font-size: 12px;
+  /* Hour tick ruler */
+  .tl-ruler {
+    display: flex;
+    margin-left: 130px;
+    margin-bottom: 2px;
+    position: relative;
+    height: 18px;
+  }
+  .tl-ruler-tick {
+    flex: 1;
+    font-size: 9px;
+    color: var(--text-faint);
+    font-weight: 500;
+    white-space: nowrap;
+    border-left: 1px solid var(--border-light);
+    padding-left: 3px;
+  }
+  /* Each room row */
+  .tl-row {
+    display: flex;
+    align-items: center;
+    border-top: 1px solid var(--border-light);
+    min-height: 44px;
+  }
+  .tl-row:last-child { border-bottom: 1px solid var(--border-light); }
+  .tl-room-label {
+    width: 130px;
+    min-width: 130px;
+    padding: 6px 10px 6px 14px;
+    font-size: 11px;
     font-weight: 600;
     color: var(--text);
-    border-right: 2px solid var(--border);
-    border-bottom: 1px solid var(--border-light);
-    background: var(--surface);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     position: sticky;
     left: 0;
+    background: var(--surface);
     z-index: 4;
-    box-shadow: 2px 0 4px rgba(0,0,0,0.06);
+    box-shadow: 2px 0 4px rgba(0,0,0,0.05);
   }
-  .timeline-room-floor {
-    font-size: 10px;
+  .tl-room-floor-label {
+    font-size: 9px;
     font-weight: 400;
     color: var(--text-faint);
     margin-top: 1px;
   }
-  .timeline-hour-header {
-    font-size: 10px;
-    color: var(--text-faint);
-    padding: 4px 0;
-    text-align: left;
-    border-bottom: 1px solid var(--border-light);
-    border-right: 1px solid var(--border-light);
-    white-space: nowrap;
-    font-weight: 500;
-    padding-left: 4px;
-  }
-  .timeline-cell {
+  /* The track — full day bar */
+  .tl-track {
+    flex: 1;
     position: relative;
-    height: 36px;
-    border-bottom: 1px solid var(--border-light);
-    border-right: 1px solid var(--border-light);
-    background: var(--surface);
+    height: 32px;
+    background: var(--surface2);
+    border-radius: 4px;
+    margin: 6px 14px 6px 0;
+    overflow: visible;
+  }
+  /* Hour grid lines on track */
+  .tl-track-grid {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    border-radius: 4px;
     overflow: hidden;
   }
-  .timeline-cell.current-hour {
-    background: rgba(30,74,60,0.04);
+  .tl-track-hour {
+    flex: 1;
+    border-right: 1px solid rgba(0,0,0,0.06);
   }
-  .timeline-block {
+  .tl-track-hour:last-child { border-right: none; }
+  /* Booking block on track */
+  .tl-booking-block {
     position: absolute;
-    top: 3px;
-    bottom: 3px;
+    top: 2px;
+    bottom: 2px;
     border-radius: 4px;
     display: flex;
     align-items: center;
-    padding: 0 5px;
+    padding: 0 7px;
+    overflow: hidden;
+    cursor: default;
+    z-index: 2;
+    min-width: 2px;
+  }
+  .tl-booking-block.confirmed { background: #C0392B; }
+  .tl-booking-block.ending-soon { background: #C07D00; }
+  .tl-booking-label {
     font-size: 10px;
     font-weight: 600;
-    overflow: hidden;
+    color: white;
     white-space: nowrap;
-    cursor: default;
-    z-index: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
   }
-  .timeline-block.confirmed { background: #C0392B; color: white; }
-  .timeline-block.ending-soon { background: #C07D00; color: white; }
-  .timeline-now-line {
+  .tl-booking-time {
+    font-size: 9px;
+    color: rgba(255,255,255,0.8);
+    white-space: nowrap;
+  }
+  /* Now line */
+  .tl-now-line {
     position: absolute;
-    top: 0;
-    bottom: 0;
+    top: -4px;
+    bottom: -4px;
     width: 2px;
     background: var(--accent);
-    z-index: 1;
+    z-index: 3;
     pointer-events: none;
+    border-radius: 1px;
   }
-  .timeline-now-dot {
+  .tl-now-dot {
     position: absolute;
-    top: -3px;
+    top: -1px;
     left: -3px;
     width: 8px;
     height: 8px;
@@ -913,6 +1004,8 @@
   }
   @media (max-width: 768px) {
     .timeline-section { padding: 0 1rem 1rem; }
+    .tl-room-label { width: 90px; min-width: 90px; font-size: 10px; padding-left: 10px; }
+    .tl-ruler { margin-left: 90px; }
   }
 
 
@@ -999,25 +1092,27 @@
 
   <!-- TODAY'S TIMELINE -->
   <div class="timeline-section" id="timeline-section">
-    <div class="timeline-header" onclick="toggleTimeline()" style="cursor:pointer;user-select:none;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div class="timeline-title">Today's Schedule</div>
+    <div class="timeline-header" style="cursor:pointer;user-select:none;">
+      <div style="display:flex;align-items:center;gap:8px;" onclick="toggleTimeline()">
+        <div class="timeline-title">Daily Overview</div>
         <span id="timeline-toggle-icon" style="font-size:12px;color:var(--text-muted);transition:transform 0.2s;">▼</span>
       </div>
-      <div class="timeline-legend" id="timeline-legend">
-        <div class="timeline-day-toggle" id="timeline-day-toggle" onclick="event.stopPropagation()">
-          <button class="tl-day-btn" data-offset="-1" onclick="setTimelineDay(-1)">Yesterday</button>
-          <button class="tl-day-btn active" data-offset="0" onclick="setTimelineDay(0)">Today</button>
-          <button class="tl-day-btn" data-offset="1" onclick="setTimelineDay(1)">Tomorrow</button>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="timeline-day-tabs" id="timeline-day-tabs">
+          <button class="tl-tab" onclick="setTimelineDay('yesterday',event)">Yesterday</button>
+          <button class="tl-tab tl-tab-active" id="tl-tab-today" onclick="setTimelineDay('today',event)">Today</button>
+          <button class="tl-tab" onclick="setTimelineDay('tomorrow',event)">Tomorrow</button>
         </div>
-        <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#C0392B"></div>Occupied</div>
-        <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#C07D00"></div>Ending Soon</div>
-        <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:var(--border-light)"></div>Available</div>
+        <div class="timeline-legend" id="timeline-legend">
+          <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#C0392B"></div>Occupied</div>
+          <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#C07D00"></div>Ending Soon</div>
+          <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:var(--border-light)"></div>Available</div>
+        </div>
       </div>
     </div>
     <div class="timeline-wrap" id="timeline-wrap" style="display:none">
-      <div class="timeline-grid">
-        <table class="timeline-table" id="timeline-table"></table>
+      <div class="tl-bar-container">
+        <div class="tl-bar-inner" id="tl-bar-inner"></div>
       </div>
     </div>
   </div>
@@ -1045,7 +1140,7 @@
         </div>
         <div class="form-group">
           <label>Purpose</label>
-          <input type="text" id="f-purpose" placeholder="e.g. Team training, Interview..." maxlength="100">
+          <input type="text" id="f-purpose" placeholder="e.g. Team training, Interview..." maxlength="100" required>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -1054,7 +1149,7 @@
           </div>
           <div class="form-group">
             <label>Number of attendees</label>
-            <input type="number" id="f-attendees" min="1" max="200" placeholder="—">
+            <input type="number" id="f-attendees" min="1" max="200" placeholder="—" required>
           </div>
         </div>
         <div class="form-group" style="display:flex;align-items:center;gap:10px;">
@@ -1099,6 +1194,17 @@
       <div id="pending-section" class="pending-section" style="display:none">
         <div class="pending-header">
           <h3>⏳ Pending Requests <span class="pending-badge" id="pending-count">0</span></h3>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <label style="font-size:12px;color:var(--warn);font-weight:500;display:flex;align-items:center;gap:5px;cursor:pointer;">
+              <input type="checkbox" id="pending-select-all" class="booking-cb" onchange="togglePendingSelectAll(this)" style="accent-color:var(--warn);"> Select all
+            </label>
+          </div>
+        </div>
+        <div id="pending-bulk-bar" style="display:none;padding:8px 16px;background:#FFF8EC;border-bottom:1px solid #F0D9B0;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span id="pending-bulk-label" style="font-size:13px;font-weight:600;color:var(--warn);flex:1;">0 selected</span>
+          <button class="btn btn-sm btn-approve" onclick="bulkApprovePending()">✅ Approve All Selected</button>
+          <button class="btn btn-sm btn-reject" onclick="bulkRejectPending()">❌ Reject All Selected</button>
+          <button class="btn btn-sm btn-ghost" onclick="clearPendingSelection()">Clear</button>
         </div>
         <div id="pending-list"></div>
       </div>
@@ -1122,17 +1228,19 @@
           <button class="btn btn-ghost" onclick="exportExcel()" style="white-space:nowrap">&#8595; Export Excel</button>
         </div>
       </div>
-      <div id="bulk-action-bar" style="display:none;align-items:center;gap:10px;background:var(--accent-light);border:1px solid #C2D9D1;border-radius:var(--radius);padding:8px 12px;margin-bottom:10px;font-size:13px;">
-        <span id="bulk-count-label" style="font-weight:600;color:var(--accent)"></span>
+      <!-- Bulk action bar -->
+      <div class="bulk-bar" id="bulk-bar">
+        <span class="bulk-bar-count" id="bulk-count-label">0 selected</span>
         <button class="btn btn-sm btn-approve" onclick="bulkApprove()">✅ Approve Selected</button>
-        <button class="btn btn-sm btn-reject" onclick="bulkDelete()">🗑️ Delete Selected</button>
-        <button class="btn btn-sm btn-ghost" onclick="clearSelection()">Clear</button>
+        <button class="btn btn-sm btn-ghost" onclick="bulkCancel()">🚫 Cancel Selected</button>
+        <button class="btn btn-sm btn-danger" onclick="bulkDelete()">🗑️ Delete Selected</button>
+        <button class="btn btn-sm btn-ghost" onclick="clearBulkSelection()">Clear</button>
       </div>
       <div class="table-wrap">
         <table id="bookings-table">
           <thead>
             <tr>
-              <th style="width:32px"><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll(this)"></th>
+              <th class="cb-cell"><input type="checkbox" id="select-all-cb" class="booking-cb" onchange="toggleSelectAll(this)" title="Select all"></th>
               <th>Room</th>
               <th>Booked By</th>
               <th>Purpose</th>
@@ -1186,7 +1294,7 @@
       </div>
       <div class="form-group">
         <label>Purpose</label>
-        <input type="text" id="req-purpose" placeholder="e.g. Team Training, Interview..." maxlength="100">
+        <input type="text" id="req-purpose" placeholder="e.g. Team Training, Interview..." maxlength="100" required>
       </div>
       <div class="form-row">
         <div class="form-group">
@@ -1195,7 +1303,7 @@
         </div>
         <div class="form-group">
           <label>Attendees</label>
-          <input type="number" id="req-attendees" min="1" max="200" placeholder="—">
+          <input type="number" id="req-attendees" min="1" max="200" placeholder="—" required>
         </div>
       </div>
       <div class="form-group" style="display:flex;align-items:center;gap:10px;">
@@ -1269,6 +1377,14 @@
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toast-container"></div>
 
+<!-- TIMELINE TOOLTIP -->
+<div class="tl-tooltip" id="tl-tooltip">
+  <div class="tl-tooltip-room" id="tl-tip-room"></div>
+  <div class="tl-tooltip-time" id="tl-tip-time"></div>
+  <div class="tl-tooltip-purpose" id="tl-tip-purpose"></div>
+  <div class="tl-tooltip-att" id="tl-tip-att"></div>
+</div>
+
 <script>
 // ===== CONFIGURATION =====
 const ROOMS = [
@@ -1289,6 +1405,7 @@ let bookings = [];
 let adminLoggedIn = false;
 let deleteTargetId = null;
 let clockInterval = null;
+let timelineDay = 'today'; // 'yesterday' | 'today' | 'tomorrow'
 
 // ===== STORAGE =====
 const API_URL = 'https://script.google.com/macros/s/AKfycbzXVaRCM7qLWgzBTUR__VD_Zn1BmVb8VzxEhMfDdNrTspV46o43QJHJGPpiFD-pRZGGMw/exec';
@@ -1340,15 +1457,12 @@ async function loadData(silent = false) {
         if (/^\d{4}-\d{2}-\d{2}$/.test(d)) return d;
         // ISO datetime e.g. "2026-05-20T00:00:00.000Z"
         if (/^\d{4}-\d{2}-\d{2}T/.test(d)) return d.substring(0, 10);
-        // DD/MM/YYYY
+        // Slash-separated: treat as DD/MM/YYYY (Indian locale default in Sheets)
         if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(d)) {
           const p = d.split('/');
+          // If first segment > 12, must be day (DD/MM/YYYY)
+          // Otherwise assume DD/MM/YYYY (Indian default)
           return p[2] + '-' + p[1].padStart(2,'0') + '-' + p[0].padStart(2,'0');
-        }
-        // MM/DD/YYYY (US format from Sheets)
-        if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(d)) {
-          const p = d.split('/');
-          return p[2] + '-' + p[0].padStart(2,'0') + '-' + p[1].padStart(2,'0');
         }
         // DD-Mon-YYYY e.g. "20-May-2026"
         const months = {jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
@@ -1424,7 +1538,8 @@ async function apiUpdate(b) {
       BookingDate: b.date,
       StartTime: b.start,
       EndTime: b.end,
-      Attendees: b.attendees || ''
+      Attendees: b.attendees || '',
+      Status: b.status || 'Confirmed'
     })
   });
 }
@@ -1540,7 +1655,7 @@ function findConflict(room, date, start, end, excludeId) {
   for (const b of bookings) {
     if (b.room !== room) continue;
     if (excludeId && b.id === excludeId) continue;
-    if (b.status === 'Rejected') continue;
+    if (b.status === 'Rejected' || b.status === 'Cancelled') continue;
     for (const ex of bookingSpans(b)) {
       for (const ns of newSpans) {
         if (ex.date === ns.date && ns.start < ex.end && ns.end > ex.start) return b;
@@ -1715,95 +1830,22 @@ function renderStatusGrid() {
   const availCount = freeCount + soonCount;
   const occEl = document.getElementById('occupancy-counter');
   if (occEl) {
-    occEl.textContent = availCount + '/' + total + ' Available';
-    occEl.style.color = availCount > total/2 ? 'var(--ok)' : availCount > 0 ? 'var(--warn)' : 'var(--danger)';
+    const occupiedCount = occCount + soonCount;
+    occEl.textContent = freeCount + '/' + total + ' Available';
+    occEl.style.color = freeCount > total/2 ? 'var(--ok)' : freeCount > 0 ? 'var(--warn)' : 'var(--danger)';
   }
   renderTimeline();
 }
 
-// ===== BULK SELECTION (Admin) =====
-let selectedBookingIds = new Set();
-
-function toggleRowSelect(id, checkbox) {
-  if (checkbox.checked) selectedBookingIds.add(id);
-  else selectedBookingIds.delete(id);
-  const allBoxes = document.querySelectorAll('.row-checkbox');
-  const allChecked = allBoxes.length > 0 && Array.from(allBoxes).every(c => c.checked);
-  document.getElementById('select-all-checkbox').checked = allChecked;
-  updateBulkBar();
-}
-
-function toggleSelectAll(checkbox) {
-  document.querySelectorAll('.row-checkbox').forEach(c => {
-    c.checked = checkbox.checked;
-    if (checkbox.checked) selectedBookingIds.add(c.dataset.id);
-    else selectedBookingIds.delete(c.dataset.id);
-  });
-  updateBulkBar();
-}
-
-function clearSelection() {
-  selectedBookingIds.clear();
-  document.querySelectorAll('.row-checkbox').forEach(c => c.checked = false);
-  const selectAll = document.getElementById('select-all-checkbox');
-  if (selectAll) selectAll.checked = false;
-  updateBulkBar();
-}
-
-function updateBulkBar() {
-  const bar = document.getElementById('bulk-action-bar');
-  const count = selectedBookingIds.size;
-  const allBoxes = document.querySelectorAll('.row-checkbox');
-  const selectAll = document.getElementById('select-all-checkbox');
-  if (selectAll) selectAll.checked = allBoxes.length > 0 && Array.from(allBoxes).every(c => c.checked);
-  if (count === 0) { bar.style.display = 'none'; return; }
-  bar.style.display = 'flex';
-  document.getElementById('bulk-count-label').textContent = `${count} selected`;
-}
-
-async function bulkApprove() {
-  const ids = [...selectedBookingIds].filter(id => {
-    const b = bookings.find(x => x.id === id);
-    return b && b.status === 'Pending';
-  });
-  if (ids.length === 0) { toast('No pending bookings in selection.', true); return; }
-  try {
-    showLoadingOverlay(true);
-    for (const id of ids) {
-      const idx = bookings.findIndex(b => b.id === id);
-      if (idx !== -1) bookings[idx].status = 'Confirmed';
-      await apiUpdateStatus(id, 'Confirmed');
-    }
-    toast(`${ids.length} booking(s) approved ✅`);
-  } catch(e) { toast('Error approving bookings.', true); }
-  finally { showLoadingOverlay(false); }
-  clearSelection();
-  renderTable(); renderActiveNow(); renderStatusGrid(); renderPendingRequests();
-}
-
-async function bulkDelete() {
-  const ids = [...selectedBookingIds];
-  if (ids.length === 0) return;
-  if (!confirm(`Delete ${ids.length} selected booking(s)? This cannot be undone.`)) return;
-  try {
-    showLoadingOverlay(true);
-    for (const id of ids) {
-      bookings = bookings.filter(b => b.id !== id);
-      await apiDelete(id);
-    }
-    toast(`${ids.length} booking(s) deleted.`);
-  } catch(e) { toast('Error deleting bookings.', true); }
-  finally { showLoadingOverlay(false); }
-  clearSelection();
-  renderTable(); renderActiveNow(); renderStatusGrid(); renderPendingRequests();
-}
-
+// ===== ADMIN TABLE =====
 function renderTable() {
   const tbody = document.getElementById('table-body');
   const search = document.getElementById('search-input').value.toLowerCase().trim();
   const filterRoom = document.getElementById('filter-room').value;
   const filterDate = document.getElementById('filter-date').value;
   const today = todayStr();
+  // Preserve current selection across re-render
+  const prevSelected = new Set(getSelectedIds());
 
   let filtered = [...bookings];
   if (search) {
@@ -1831,7 +1873,7 @@ function renderTable() {
       <div>No bookings found.</div>
     </div></td></tr>`;
     document.getElementById('table-count').textContent = '';
-    updateBulkBar();
+    clearBulkSelection();
     return;
   }
 
@@ -1850,9 +1892,8 @@ function renderTable() {
     }
     const overnightTag = isOvernight(b) ? ' <span style="font-size:10px;color:var(--text-faint);font-weight:600">+1 day</span>' : '';
 
-    const checked = selectedBookingIds.has(b.id) ? 'checked' : '';
     html += `<tr>
-      <td><input type="checkbox" class="row-checkbox" data-id="${b.id}" ${checked} onchange="toggleRowSelect('${b.id}', this)"></td>
+      <td class="cb-cell"><input type="checkbox" class="booking-cb row-cb" data-id="${b.id}" onchange="onRowCbChange()" title="Select"></td>
       <td class="td-room">${escHtml(roomName(b.room))}</td>
       <td>${escHtml(b.booker)}</td>
       <td style="color:var(--text-muted)">${escHtml(b.purpose || '—')}</td>
@@ -1869,8 +1910,12 @@ function renderTable() {
     </tr>`;
   }
   tbody.innerHTML = html;
-  document.getElementById('table-count').textContent = `Showing ${filtered.length} of ${bookings.length} booking${bookings.length !== 1 ? 's' : ''}`;
+  // Restore previous checkbox selections
+  document.querySelectorAll('.row-cb').forEach(cb => {
+    if (prevSelected.has(cb.dataset.id)) cb.checked = true;
+  });
   updateBulkBar();
+  document.getElementById('table-count').textContent = `Showing ${filtered.length} of ${bookings.length} booking${bookings.length !== 1 ? 's' : ''}`;
 }
 
 function renderActiveNow() {
@@ -1961,18 +2006,15 @@ function toggleRecurring() {
   }
 }
 
-function getWeekdays(startStr, endStr, bookingEndTime) {
+function getWeekdays(startStr, endStr) {
   const dates = [];
   const start = new Date(startStr + 'T00:00:00');
   const end = new Date(endStr + 'T00:00:00');
   if (end < start) return dates;
-  // US-shift exception: if the booking ends by 4 AM, treat Saturday as a valid
-  // weekday slot too (it's really Friday night's shift spilling into Saturday morning).
-  const allowSaturday = bookingEndTime && minutesSinceMidnight(bookingEndTime) > 0 && minutesSinceMidnight(bookingEndTime) <= 240;
   const cur = new Date(start);
   while (cur <= end) {
     const day = cur.getDay();
-    if (day !== 0 && (day !== 6 || allowSaturday)) {
+    if (day !== 0 && day !== 6) {
       dates.push(localDateStr(cur));
     }
     cur.setDate(cur.getDate() + 1);
@@ -1993,7 +2035,7 @@ async function submitBooking(e) {
   const isRecurring = document.getElementById('f-recurring').checked && !id;
   const dateEnd = document.getElementById('f-date-end').value;
 
-  if (!room || !booker || !date || !start || !end) {
+  if (!room || !booker || !purpose || !date || !start || !end || !attendees) {
     showError('Please fill in all required fields.'); return;
   }
   if (minutesSinceMidnight(end) === minutesSinceMidnight(start)) {
@@ -2006,21 +2048,30 @@ async function submitBooking(e) {
     showError('End date must be on or after start date.'); return;
   }
 
-  const dates = isRecurring ? getWeekdays(date, dateEnd, end) : [date];
+  const dates = isRecurring ? getWeekdays(date, dateEnd) : [date];
   if (dates.length === 0) { showError('No weekdays found in selected range.'); return; }
 
   document.getElementById('form-error').classList.remove('visible');
 
-  // Single booking edit - simple conflict check
+  // Single booking edit - conflict check with alternative suggestions
   if (id) {
     const conflict = findConflict(room, date, start, end, id);
     if (conflict) {
-      showError(`Conflict: ${roomName(room)} booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.`);
+      // Show alternatives inline in form error + open conflict modal
+      const freeAlts = getFreeRoomsForDate(date, start, end, room);
+      let msg = `Conflict: ${roomName(room)} is booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.`;
+      if (freeAlts.length > 0) {
+        msg += ` Free alternatives: ${freeAlts.map(r => r.name).join(', ')}.`;
+      } else {
+        msg += ' No other rooms are free at this time.';
+      }
+      showError(msg);
       return;
     }
     try {
       showLoadingOverlay(true);
-      const booking = { id, room, booker, purpose, date, start, end, attendees: attendees || '', status: 'Confirmed' };
+      const origStatus = bookings.find(b => b.id === id)?.status || 'Confirmed';
+      const booking = { id, room, booker, purpose, date, start, end, attendees: attendees || '', status: origStatus };
       const idx = bookings.findIndex(b => b.id === id);
       if (idx !== -1) bookings[idx] = booking;
       await apiUpdate(booking);
@@ -2225,6 +2276,10 @@ function openRequestModal(roomId) {
   document.getElementById('req-form-view').style.display = '';
   document.getElementById('req-confirm-view').style.display = 'none';
   ['req-booker','req-purpose','req-start','req-end','req-attendees'].forEach(id => document.getElementById(id).value = '');
+  const recEl = document.getElementById('req-recurring');
+  if (recEl) recEl.checked = false;
+  const wrapEl = document.getElementById('req-recurring-end-wrap');
+  if (wrapEl) wrapEl.style.display = 'none';
   reqSubmitting = false;
   document.getElementById('request-modal').style.display = 'flex';
 }
@@ -2249,7 +2304,7 @@ async function submitRequest() {
   const dateEnd = document.getElementById('req-date-end') ? document.getElementById('req-date-end').value : '';
   const errEl = document.getElementById('req-error');
 
-  if (!room || !booker || !date || !start || !end) {
+  if (!room || !booker || !purpose || !date || !start || !end || !attendees) {
     errEl.textContent = 'Please fill in all required fields.';
     errEl.classList.add('visible'); return;
   }
@@ -2268,10 +2323,25 @@ async function submitRequest() {
   errEl.classList.remove('visible');
   reqSubmitting = true;
 
-  const dates = isRecurring ? getWeekdays(date, dateEnd, end) : [date];
+  const dates = isRecurring ? getWeekdays(date, dateEnd) : [date];
   if (dates.length === 0) {
     errEl.textContent = 'No weekdays found in selected range.';
     errEl.classList.add('visible'); return;
+  }
+
+  // Conflict check — inform requester but still allow Pending submission
+  // (admin will see conflict when approving)
+  const conflictWarnings = [];
+  for (const d of dates) {
+    const conflict = findConflict(room, d, start, end, null);
+    if (conflict) conflictWarnings.push({ date: d, conflict });
+  }
+  if (conflictWarnings.length > 0) {
+    const first = conflictWarnings[0];
+    errEl.textContent = `Conflict on ${fmtDate(first.date)}: ${roomName(room)} is already booked ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker}. Please choose a different room or time.`;
+    errEl.classList.add('visible');
+    reqSubmitting = false;
+    return;
   }
 
   try {
@@ -2283,6 +2353,7 @@ async function submitRequest() {
     }
     document.getElementById('req-form-view').style.display = 'none';
     document.getElementById('req-confirm-view').style.display = '';
+    reqSubmitting = false;
     launchConfetti();
     updatePendingDot();
   } catch(e) {
@@ -2317,10 +2388,13 @@ function renderPendingRequests() {
   list.innerHTML = pending.sort((a,b) => (a.date+a.start) < (b.date+b.start) ? -1 : 1).map(b => `
     <div class="pending-item" id="pending-item-${b.id}">
       <div class="pending-item-top">
-        <div>
-          <div class="pending-room-name">${escHtml(roomName(b.room))}</div>
-          <div class="pending-meta">${escHtml(b.booker)}${b.purpose ? ' &middot; ' + escHtml(b.purpose) : ''}</div>
-          <div class="pending-meta">${fmtDate(b.date)} &middot; ${fmtTime(b.start)} – ${fmtTime(b.end)}${b.attendees ? ' &middot; ' + b.attendees + ' attendees' : ''}</div>
+        <div style="display:flex;align-items:flex-start;gap:10px;">
+          <input type="checkbox" class="booking-cb pending-cb" data-id="${b.id}" onchange="onPendingCbChange()" style="margin-top:3px;accent-color:var(--warn);width:15px;height:15px;cursor:pointer;flex-shrink:0;">
+          <div>
+            <div class="pending-room-name">${escHtml(roomName(b.room))}</div>
+            <div class="pending-meta">${escHtml(b.booker)}${b.purpose ? ' &middot; ' + escHtml(b.purpose) : ''}</div>
+            <div class="pending-meta">${fmtDate(b.date)} &middot; ${fmtTime(b.start)} – ${fmtTime(b.end)}${b.attendees ? ' &middot; ' + b.attendees + ' attendees' : ''}</div>
+          </div>
         </div>
       </div>
       <div class="pending-actions">
@@ -2361,7 +2435,7 @@ async function approvePending(id) {
     toast('Booking approved ✅');
   } catch(e) { toast('Error approving booking.', true); }
   finally { showLoadingOverlay(false); }
-  renderPendingRequests(); renderTable(); renderStatusGrid();
+  renderPendingRequests(); renderTable(); renderStatusGrid(); updatePendingDot();
 }
 
 async function modifyAndApprove(id) {
@@ -2385,7 +2459,7 @@ async function modifyAndApprove(id) {
     toast('Booking modified & approved ✅');
   } catch(e) { toast('Error updating booking.', true); }
   finally { showLoadingOverlay(false); }
-  renderPendingRequests(); renderTable(); renderStatusGrid();
+  renderPendingRequests(); renderTable(); renderStatusGrid(); updatePendingDot();
 }
 
 function openRejectModal(id) {
@@ -2412,6 +2486,225 @@ async function confirmReject() {
   renderPendingRequests(); renderTable(); renderStatusGrid(); updatePendingDot();
 }
 
+// ===== PENDING BULK SELECTION =====
+function getPendingSelectedIds() {
+  return Array.from(document.querySelectorAll('.pending-cb:checked')).map(cb => cb.dataset.id);
+}
+
+function updatePendingBulkBar() {
+  const ids = getPendingSelectedIds();
+  const bar = document.getElementById('pending-bulk-bar');
+  const label = document.getElementById('pending-bulk-label');
+  if (!bar) return;
+  bar.style.display = ids.length > 0 ? 'flex' : 'none';
+  if (label) label.textContent = ids.length + ' selected';
+  const selAll = document.getElementById('pending-select-all');
+  const allCbs = document.querySelectorAll('.pending-cb');
+  if (selAll) {
+    selAll.checked = allCbs.length > 0 && ids.length === allCbs.length;
+    selAll.indeterminate = ids.length > 0 && ids.length < allCbs.length;
+  }
+}
+
+function onPendingCbChange() { updatePendingBulkBar(); }
+
+function togglePendingSelectAll(masterCb) {
+  document.querySelectorAll('.pending-cb').forEach(cb => cb.checked = masterCb.checked);
+  updatePendingBulkBar();
+}
+
+function clearPendingSelection() {
+  document.querySelectorAll('.pending-cb').forEach(cb => cb.checked = false);
+  const sa = document.getElementById('pending-select-all');
+  if (sa) { sa.checked = false; sa.indeterminate = false; }
+  updatePendingBulkBar();
+}
+
+async function bulkApprovePending() {
+  const ids = getPendingSelectedIds();
+  if (ids.length === 0) return;
+  if (!confirm(`Approve ${ids.length} pending request(s)?`)) return;
+  showLoadingOverlay(true);
+  let approved = 0;
+  try {
+    for (const id of ids) {
+      const idx = bookings.findIndex(b => b.id === id);
+      if (idx !== -1) {
+        bookings[idx].status = 'Confirmed';
+        await apiUpdateStatus(id, 'Confirmed');
+        approved++;
+      }
+    }
+    toast(`${approved} request(s) approved ✅`);
+  } catch(e) { toast('Error during bulk approve.', true); }
+  finally { showLoadingOverlay(false); }
+  renderPendingRequests(); renderTable(); renderStatusGrid(); updatePendingDot();
+}
+
+async function bulkRejectPending() {
+  const ids = getPendingSelectedIds();
+  if (ids.length === 0) return;
+  if (!confirm(`Reject ${ids.length} pending request(s)? They will be marked Rejected.`)) return;
+  showLoadingOverlay(true);
+  let rejected = 0;
+  try {
+    for (const id of ids) {
+      const idx = bookings.findIndex(b => b.id === id);
+      if (idx !== -1) {
+        bookings[idx].status = 'Rejected';
+        await apiUpdateStatus(id, 'Rejected');
+        rejected++;
+      }
+    }
+    toast(`${rejected} request(s) rejected.`);
+  } catch(e) { toast('Error during bulk reject.', true); }
+  finally { showLoadingOverlay(false); }
+  renderPendingRequests(); renderTable(); renderStatusGrid(); updatePendingDot();
+}
+
+// ===== BULK SELECTION (Admin table) =====
+function getSelectedIds() {
+  return Array.from(document.querySelectorAll('.row-cb:checked')).map(cb => cb.dataset.id);
+}
+
+function updateBulkBar() {
+  const ids = getSelectedIds();
+  const bar = document.getElementById('bulk-bar');
+  const label = document.getElementById('bulk-count-label');
+  if (!bar) return;
+  if (ids.length > 0) {
+    bar.classList.add('visible');
+    label.textContent = ids.length + ' selected';
+  } else {
+    bar.classList.remove('visible');
+  }
+  // Sync select-all checkbox
+  const allCbs = document.querySelectorAll('.row-cb');
+  const selAll = document.getElementById('select-all-cb');
+  if (selAll) {
+    selAll.checked = allCbs.length > 0 && ids.length === allCbs.length;
+    selAll.indeterminate = ids.length > 0 && ids.length < allCbs.length;
+  }
+}
+
+function onRowCbChange() { updateBulkBar(); }
+
+function toggleSelectAll(masterCb) {
+  document.querySelectorAll('.row-cb').forEach(cb => cb.checked = masterCb.checked);
+  updateBulkBar();
+}
+
+function clearBulkSelection() {
+  document.querySelectorAll('.row-cb').forEach(cb => cb.checked = false);
+  const sa = document.getElementById('select-all-cb');
+  if (sa) { sa.checked = false; sa.indeterminate = false; }
+  updateBulkBar();
+}
+
+async function bulkApprove() {
+  const ids = getSelectedIds();
+  if (ids.length === 0) return;
+  if (!confirm(`Approve ${ids.length} booking(s)?`)) return;
+  showLoadingOverlay(true);
+  let approved = 0;
+  try {
+    for (const id of ids) {
+      const idx = bookings.findIndex(b => b.id === id);
+      if (idx !== -1) {
+        bookings[idx].status = 'Confirmed';
+        await apiUpdateStatus(id, 'Confirmed');
+        approved++;
+      }
+    }
+    toast(`${approved} booking(s) approved.`);
+  } catch(e) { toast('Error during bulk approve.', true); }
+  finally { showLoadingOverlay(false); }
+  renderPendingRequests(); renderTable(); renderStatusGrid(); updatePendingDot();
+}
+
+async function bulkCancel() {
+  const ids = getSelectedIds();
+  if (ids.length === 0) return;
+  if (!confirm(`Cancel ${ids.length} booking(s)?`)) return;
+  showLoadingOverlay(true);
+  try {
+    for (const id of ids) {
+      await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'cancel', BookingID: id }) });
+      const idx = bookings.findIndex(b => b.id === id);
+      if (idx !== -1) bookings[idx].status = 'Cancelled';
+    }
+    toast(`${ids.length} booking(s) cancelled.`);
+  } catch(e) { toast('Error during bulk cancel.', true); }
+  finally { showLoadingOverlay(false); }
+  renderTable(); renderActiveNow(); renderStatusGrid(); renderPendingRequests(); updatePendingDot();
+}
+
+async function bulkDelete() {
+  const ids = getSelectedIds();
+  if (ids.length === 0) return;
+  if (!confirm(`Permanently delete ${ids.length} booking(s)? This cannot be undone.`)) return;
+  showLoadingOverlay(true);
+  try {
+    for (const id of ids) {
+      await apiDelete(id);
+      bookings = bookings.filter(b => b.id !== id);
+    }
+    toast(`${ids.length} booking(s) deleted.`);
+  } catch(e) { toast('Error during bulk delete.', true); }
+  finally { showLoadingOverlay(false); }
+  renderTable(); renderActiveNow(); renderStatusGrid(); renderPendingRequests();
+}
+
+// ===== TIMELINE TOOLTIP =====
+let _tlTooltipTimeout = null;
+
+function showTlTooltip(e, el) {
+  if (_tlTooltipTimeout) { clearTimeout(_tlTooltipTimeout); _tlTooltipTimeout = null; }
+  const tip = document.getElementById('tl-tooltip');
+  document.getElementById('tl-tip-room').textContent = el.dataset.booker || '';
+  document.getElementById('tl-tip-time').textContent = el.dataset.time || '';
+  document.getElementById('tl-tip-purpose').textContent = el.dataset.purpose || '';
+  const att = el.dataset.att;
+  document.getElementById('tl-tip-att').textContent = att ? att + ' attendees' : '';
+
+  // Position: use touch or mouse coords
+  const isTouchEvt = e.type === 'touchstart';
+  const clientX = isTouchEvt ? e.touches[0].clientX : e.clientX;
+  const clientY = isTouchEvt ? e.touches[0].clientY : e.clientY;
+
+  tip.classList.add('visible');
+
+  // Position after browser has rendered (to get size)
+  requestAnimationFrame(() => {
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let left = clientX + 12;
+    let top = clientY - th / 2;
+    if (left + tw > vw - 8) left = clientX - tw - 12;
+    if (top < 8) top = 8;
+    if (top + th > vh - 8) top = vh - th - 8;
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  });
+
+  if (isTouchEvt) {
+    // Auto-hide after 3s on touch
+    _tlTooltipTimeout = setTimeout(hideTlTooltip, 3000);
+  }
+}
+
+function hideTlTooltip() {
+  if (_tlTooltipTimeout) { clearTimeout(_tlTooltipTimeout); _tlTooltipTimeout = null; }
+  document.getElementById('tl-tooltip').classList.remove('visible');
+}
+
+function hideTlTooltipDelayed() {
+  _tlTooltipTimeout = setTimeout(hideTlTooltip, 2800);
+}
+
+// Hide tooltip on scroll (important for mobile)
+document.addEventListener('scroll', hideTlTooltip, true);
+
 // ===== INIT =====
 async function init() {
   populateRoomSelects();
@@ -2424,7 +2717,6 @@ async function init() {
     updateClock();
     await loadData(true);
     updatePendingDot();
-    renderPendingRequests();
     if (document.getElementById('page-status').classList.contains('active')) {
       renderStatusGrid();
     }
@@ -2683,7 +2975,9 @@ async function confirmCancelBooking() {
     showLoadingOverlay(true);
     // Mark as Cancelled in sheet — keeps record
     await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'cancel', BookingID: _cancelBookingId }) });
-    bookings = bookings.filter(x => x.id !== _cancelBookingId);
+    // Update local state to Cancelled (matches sheet) rather than removing
+    const idx = bookings.findIndex(x => x.id === _cancelBookingId);
+    if (idx !== -1) bookings[idx].status = 'Cancelled';
     closeCancelModal();
     closeSchedModal();
     toast('Booking cancelled successfully.');
@@ -2702,7 +2996,126 @@ async function confirmCancelBooking() {
 
 
 
-let timelineDayOffset = 0; // 0=today, -1=yesterday, 1=tomorrow
+// ===== DAILY OVERVIEW (Continuous Bar Timeline) =====
+function getBookingSpansLocal(b) {
+  const s = minutesSinceMidnight(b.start);
+  const e = minutesSinceMidnight(b.end);
+  if (e > s) return [{ date: b.date, start: s, end: e }];
+  const spans = [{ date: b.date, start: s, end: 1440 }];
+  if (e > 0) spans.push({ date: addDaysStr(b.date, 1), start: 0, end: e });
+  return spans;
+}
+
+function renderTimeline() {
+  const container = document.getElementById('tl-bar-inner');
+  if (!container) return;
+
+  const today = todayStr();
+  const now = nowMinutes();
+  const DAY_MINS = 1440;
+
+  let targetDate;
+  if (timelineDay === 'yesterday') targetDate = addDaysStr(today, -1);
+  else if (timelineDay === 'tomorrow') targetDate = addDaysStr(today, 1);
+  else targetDate = today;
+  const isToday = targetDate === today;
+
+  // Hour tick ruler (every 2 hours for readability)
+  const TICK_HOURS = [0,2,4,6,8,10,12,14,16,18,20,22];
+  const tickLabels = TICK_HOURS.map(h => {
+    const label = h === 0 ? '12 AM' : h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h-12) + ' PM';
+    const leftPct = (h * 60 / DAY_MINS) * 100;
+    return `<div class="tl-ruler-tick" style="position:absolute;left:${leftPct}%">${label}</div>`;
+  }).join('');
+
+  // 24 light grid hour dividers on each track
+  let gridHtml = '';
+  for (let h = 1; h < 24; h++) {
+    const leftPct = (h / 24) * 100;
+    gridHtml += `<div style="position:absolute;top:0;bottom:0;left:${leftPct}%;width:1px;background:rgba(0,0,0,0.06);"></div>`;
+  }
+
+  // Now line pct
+  const nowPct = (now / DAY_MINS) * 100;
+
+  let rowsHtml = '';
+  for (const room of ROOMS) {
+    const roomBookings = bookings.filter(b =>
+      b.room === room.id && (b.status === 'Confirmed' || !b.status)
+    );
+
+    // Get spans that fall on targetDate
+    let blocksHtml = '';
+    for (const b of roomBookings) {
+      const spans = getBookingSpansLocal(b).filter(s => s.date === targetDate);
+      for (const span of spans) {
+        const leftPct = (span.start / DAY_MINS) * 100;
+        const widthPct = ((span.end - span.start) / DAY_MINS) * 100;
+        const remaining = span.end - now;
+        const cls = isToday && now >= span.start && remaining <= 30 ? 'ending-soon' : 'confirmed';
+        const startFmt = fmtTime(b.start);
+        const endFmt = fmtTime(b.end);
+        const showLabel = widthPct > 3;
+        const showTime = widthPct > 7;
+        blocksHtml += `<div class="tl-booking-block ${cls}"
+          style="left:${leftPct.toFixed(3)}%;width:${widthPct.toFixed(3)}%"
+          data-booker="${escHtml(b.booker)}"
+          data-time="${startFmt}–${endFmt}"
+          data-purpose="${escHtml(b.purpose || '')}"
+          data-att="${escHtml(b.attendees || '')}"
+          onmouseenter="showTlTooltip(event,this)"
+          onmouseleave="hideTlTooltip()"
+          ontouchstart="showTlTooltip(event,this)"
+          ontouchend="hideTlTooltipDelayed()">
+          ${showLabel ? `<div>
+            <div class="tl-booking-label">${escHtml(b.booker)}</div>
+            ${showTime ? `<div class="tl-booking-time">${startFmt}–${endFmt}</div>` : ''}
+          </div>` : ''}
+        </div>`;
+      }
+    }
+
+    // Now line only on today
+    const nowLineHtml = isToday
+      ? `<div class="tl-now-line" style="left:${nowPct.toFixed(3)}%"><div class="tl-now-dot"></div></div>`
+      : '';
+
+    rowsHtml += `<div class="tl-row">
+      <div class="tl-room-label">
+        ${escHtml(room.name)}
+        <div class="tl-room-floor-label">${escHtml(room.floor)}</div>
+      </div>
+      <div class="tl-track">
+        ${gridHtml}
+        ${blocksHtml}
+        ${nowLineHtml}
+      </div>
+    </div>`;
+  }
+
+  container.innerHTML = `
+    <div style="position:relative;margin-left:130px;margin-right:14px;height:18px;margin-bottom:2px;">
+      ${tickLabels}
+    </div>
+    ${rowsHtml}
+  `;
+}
+
+function setTimelineDay(day, event) {
+  if (event) event.stopPropagation();
+  timelineDay = day;
+  // Update tab active state
+  document.querySelectorAll('.tl-tab').forEach(t => t.classList.remove('tl-tab-active'));
+  if (event && event.target) event.target.classList.add('tl-tab-active');
+  // If timeline is collapsed, expand it
+  const wrap = document.getElementById('timeline-wrap');
+  const icon = document.getElementById('timeline-toggle-icon');
+  if (wrap.style.display === 'none') {
+    wrap.style.display = 'block';
+    icon.style.transform = 'rotate(0deg)';
+  }
+  renderTimeline();
+}
 
 function toggleTimeline() {
   const wrap = document.getElementById('timeline-wrap');
@@ -2713,102 +3126,6 @@ function toggleTimeline() {
   if (isHidden) renderTimeline();
 }
 
-function setTimelineDay(offset) {
-  timelineDayOffset = offset;
-  document.querySelectorAll('.tl-day-btn').forEach(btn => {
-    btn.classList.toggle('active', Number(btn.dataset.offset) === offset);
-  });
-  renderTimeline();
-}
-
-// ===== TODAY'S TIMELINE =====
-function renderTimeline() {
-  const table = document.getElementById('timeline-table');
-  if (!table) return;
-  const targetDate = addDaysStr(todayStr(), timelineDayOffset);
-  const isToday = timelineDayOffset === 0;
-  const now = nowMinutes();
-  const START_HOUR = 0;  // 12 AM
-  const END_HOUR = 24;   // 12 AM next day
-  const HOURS = END_HOUR - START_HOUR;
-  const CELL_MINS = 60;
-
-  // Header row
-  let headerRow = '<tr><th class="timeline-room-col" style="border-bottom:1px solid var(--border-light)">Room</th>';
-  for (let h = START_HOUR; h < END_HOUR; h++) {
-    const label = h === 0 ? '12 AM' : h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h-12) + ' PM';
-    headerRow += `<th class="timeline-hour-header">${label}</th>`;
-  }
-  headerRow += '</tr>';
-
-  // Room rows
-  let rows = '';
-  for (const room of ROOMS) {
-    // Include bookings from the prior/next day too, in case their overnight span lands on targetDate
-    const candidateBookings = bookings.filter(b =>
-      b.room === room.id &&
-      (b.status === 'Confirmed' || !b.status) &&
-      (b.date === targetDate || b.date === addDaysStr(targetDate, -1) || b.date === addDaysStr(targetDate, 1))
-    );
-
-    let cells = '';
-    for (let h = START_HOUR; h < END_HOUR; h++) {
-      const cellStart = h * 60;
-      const cellEnd = cellStart + CELL_MINS;
-      const isCurrent = isToday && now >= cellStart && now < cellEnd;
-
-      // Find bookings that overlap this cell
-      const overlapping = candidateBookings.filter(b => {
-        const spans = getBookingSpansLocal(b);
-        return spans.some(s => s.date === targetDate && s.start < cellEnd && s.end > cellStart);
-      });
-
-      let blocksHtml = '';
-      for (const b of overlapping) {
-        const spans = getBookingSpansLocal(b).filter(s => s.date === targetDate);
-        for (const span of spans) {
-          if (span.start >= cellEnd || span.end <= cellStart) continue;
-          const blockStart = Math.max(span.start, cellStart);
-          const blockEnd = Math.min(span.end, cellEnd);
-          const leftPct = ((blockStart - cellStart) / CELL_MINS) * 100;
-          const widthPct = ((blockEnd - blockStart) / CELL_MINS) * 100;
-          const remaining = span.end - now;
-          const cls = isToday && remaining <= 30 && now >= span.start ? 'ending-soon' : 'confirmed';
-          blocksHtml += `<div class="timeline-block ${cls}" style="left:${leftPct}%;width:${widthPct}%" title="${escHtml(b.booker)}${b.purpose ? ' — ' + b.purpose : ''}">${widthPct > 15 ? escHtml(b.booker) : ''}</div>`;
-        }
-      }
-
-      // Now line
-      let nowLine = '';
-      if (isCurrent) {
-        const nowPct = ((now - cellStart) / CELL_MINS) * 100;
-        nowLine = `<div class="timeline-now-line" style="left:${nowPct}%"><div class="timeline-now-dot"></div></div>`;
-      }
-
-      cells += `<td class="timeline-cell${isCurrent ? ' current-hour' : ''}">${blocksHtml}${nowLine}</td>`;
-    }
-
-    rows += `<tr>
-      <td class="timeline-room-col">
-        ${escHtml(room.name)}
-        <div class="timeline-room-floor">${escHtml(room.floor)}</div>
-      </td>
-      ${cells}
-    </tr>`;
-  }
-
-  table.innerHTML = headerRow + rows;
-}
-
-function getBookingSpansLocal(b) {
-  const s = minutesSinceMidnight(b.start);
-  const e = minutesSinceMidnight(b.end);
-  if (e > s) return [{ date: b.date, start: s, end: e }];
-  // Overnight
-  const spans = [{ date: b.date, start: s, end: 1440 }];
-  if (e > 0) spans.push({ date: addDaysStr(b.date, 1), start: 0, end: e });
-  return spans;
-}
 
 
 // ===== CONFETTI =====
@@ -2856,6 +3173,7 @@ function exportExcel() {
     let status;
     if (b.status === 'Pending') status = 'Pending';
     else if (b.status === 'Rejected') status = 'Rejected';
+    else if (b.status === 'Cancelled') status = 'Cancelled';
     else {
       const ts = bookingTimeStatus(b);
       status = ts === 'past' ? 'Past' : ts === 'active' ? 'Active' : 'Upcoming';
@@ -2911,7 +3229,7 @@ if ('serviceWorker' in navigator) {
 
 
 <!-- CANCEL BOOKING MODAL -->
-<div class="modal-overlay" id="cancel-modal" class="modal-overlay modal-overlay-top" style="display:none;" onclick="if(event.target===this)closeCancelModal()">
+<div class="modal-overlay modal-overlay-top" id="cancel-modal" style="display:none;" onclick="if(event.target===this)closeCancelModal()">
   <div class="cancel-modal-box">
     <div class="modal-title">Cancel Your Booking</div>
     <div class="modal-sub">Enter your name to verify and cancel your booking.</div>
