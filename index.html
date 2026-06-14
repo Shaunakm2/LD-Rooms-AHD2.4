@@ -1540,10 +1540,9 @@ async function apiUpdateStatus(id, status) {
 }
 
 async function apiUpdate(b) {
-  await apiPost({ action: 'delete', BookingID: b.id });
-  // Small delay to ensure delete commits before create
+  await apiPost({ action: 'delete', BookingID: b.id, silent: true });
   await new Promise(r => setTimeout(r, 1500));
-  await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed' });
+  await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed', isUpdate: true });
 }
 
 async function apiDelete(id) {
@@ -2448,9 +2447,9 @@ async function modifyAndApprove(id) {
   try {
     showLoadingOverlay(true);
     bookings[idx] = b;
-    await apiPost({ action: 'delete', BookingID: b.id });
+    await apiPost({ action: 'delete', BookingID: b.id, silent: true });
     await new Promise(r => setTimeout(r, 1500));
-    await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed' });
+    await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed', isUpdate: true });
     toast('Booking modified & approved ✅');
   } catch(e) { toast('Error updating booking.', true); }
   finally { showLoadingOverlay(false); }
