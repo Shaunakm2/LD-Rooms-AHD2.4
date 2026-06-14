@@ -1408,7 +1408,7 @@ let clockInterval = null;
 let timelineDay = 'today'; // 'yesterday' | 'today' | 'tomorrow'
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbz7jcCeqPT1lb4ml2XPdriqgjGmduTIevQcTd1EOroJa35K4dSMaV6cZBANp1dwb_PsVQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzpjvtXUCQUUIQGq12Vx3bMxb3G7FRzrIgEM8LQg-8JZ3n_BJvKwI939xguq-0bDkvdrg/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -1506,13 +1506,12 @@ let _writePending = false;
 
 async function apiPost(payload) {
   _writePending = true;
-  await fetch(API_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(payload)
-  });
-  setTimeout(() => { _writePending = false; }, 8000);
+  try {
+    const params = new URLSearchParams({ data: JSON.stringify(payload) });
+    await fetch(API_URL + '?' + params.toString());
+  } finally {
+    setTimeout(() => { _writePending = false; }, 8000);
+  }
 }
 
 async function apiCreate(b) {
