@@ -1501,54 +1501,40 @@ async function loadData(silent = false) {
   }
 }
 
-async function apiCreate(b) {
+async function apiPost(payload) {
   await fetch(API_URL, {
     method: 'POST',
-    body: JSON.stringify({
-      action: 'create',
-      BookingID: b.id,
-      Room: b.room,
-      BookedBy: b.booker,
-      Purpose: b.purpose || '',
-      BookingDate: b.date,
-      StartTime: b.start,
-      EndTime: b.end,
-      Attendees: b.attendees || '',
-      Status: b.status || 'Confirmed'
-    })
+    mode: 'no-cors',
+    body: JSON.stringify(payload)
+  });
+}
+
+async function apiCreate(b) {
+  await apiPost({
+    action: 'create',
+    BookingID: b.id, Room: b.room, BookedBy: b.booker,
+    Purpose: b.purpose || '', BookingDate: b.date,
+    StartTime: b.start, EndTime: b.end,
+    Attendees: b.attendees || '', Status: b.status || 'Confirmed'
   });
 }
 
 async function apiUpdateStatus(id, status) {
-  await fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'updateStatus', BookingID: id, Status: status })
-  });
+  await apiPost({ action: 'updateStatus', BookingID: id, Status: status });
 }
 
 async function apiUpdate(b) {
-  await fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify({
-      action: 'update',
-      BookingID: b.id,
-      Room: b.room,
-      BookedBy: b.booker,
-      Purpose: b.purpose || '',
-      BookingDate: b.date,
-      StartTime: b.start,
-      EndTime: b.end,
-      Attendees: b.attendees || '',
-      Status: b.status || 'Confirmed'
-    })
+  await apiPost({
+    action: 'update',
+    BookingID: b.id, Room: b.room, BookedBy: b.booker,
+    Purpose: b.purpose || '', BookingDate: b.date,
+    StartTime: b.start, EndTime: b.end,
+    Attendees: b.attendees || '', Status: b.status || 'Confirmed'
   });
 }
 
 async function apiDelete(id) {
-  await fetch(API_URL, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'delete', BookingID: id })
-  });
+  await apiPost({ action: 'delete', BookingID: id });
 }
 
 function showLoadingOverlay(show) {
@@ -2451,11 +2437,11 @@ async function modifyAndApprove(id) {
   try {
     showLoadingOverlay(true);
     bookings[idx] = b;
-    await fetch(API_URL, { method: 'POST', body: JSON.stringify({
+    await apiPost({
       action: 'update', BookingID: b.id, Room: b.room, BookedBy: b.booker,
       Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start,
       EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed'
-    })});
+    });
     toast('Booking modified & approved ✅');
   } catch(e) { toast('Error updating booking.', true); }
   finally { showLoadingOverlay(false); }
@@ -2629,7 +2615,7 @@ async function bulkCancel() {
   showLoadingOverlay(true);
   try {
     for (const id of ids) {
-      await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'cancel', BookingID: id }) });
+      await apiPost({ action: 'cancel', BookingID: id });
       const idx = bookings.findIndex(b => b.id === id);
       if (idx !== -1) bookings[idx].status = 'Cancelled';
     }
@@ -2974,7 +2960,7 @@ async function confirmCancelBooking() {
   try {
     showLoadingOverlay(true);
     // Mark as Cancelled in sheet — keeps record
-    await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'cancel', BookingID: _cancelBookingId }) });
+    await apiPost({ action: 'cancel', BookingID: _cancelBookingId });
     // Update local state to Cancelled (matches sheet) rather than removing
     const idx = bookings.findIndex(x => x.id === _cancelBookingId);
     if (idx !== -1) bookings[idx].status = 'Cancelled';
