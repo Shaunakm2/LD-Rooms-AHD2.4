@@ -724,6 +724,28 @@
     vertical-align: middle;
   }
 
+  /* PAGINATION */
+  .pg-btn {
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: all 0.15s;
+    min-width: 32px;
+  }
+  .pg-btn:hover:not(:disabled) { background: var(--surface2); }
+  .pg-btn:disabled { opacity: 0.4; cursor: default; }
+  .pg-btn.pg-active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+    font-weight: 600;
+  }
+
   /* BULK ACTION BAR */
   .bulk-bar {
     display: none;
@@ -1214,12 +1236,12 @@
         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
           <div class="search-input-wrap">
             <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <input type="text" id="search-input" placeholder="Search bookings..." oninput="renderTable()">
+            <input type="text" id="search-input" placeholder="Search bookings..." oninput="_tablePage=0;renderTable()">
           </div>
-          <select id="filter-room" onchange="renderTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:14px;outline:none;">
+          <select id="filter-room" onchange="_tablePage=0;renderTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:14px;outline:none;">
             <option value="">All rooms</option>
           </select>
-          <select id="filter-date" onchange="renderTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:14px;outline:none;">
+          <select id="filter-date" onchange="_tablePage=0;renderTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:14px;outline:none;">
             <option value="">All dates</option>
             <option value="today">Today</option>
             <option value="upcoming">Upcoming</option>
@@ -1254,7 +1276,10 @@
           <tbody id="table-body"></tbody>
         </table>
       </div>
-      <div id="table-count" style="font-size:13px;color:var(--text-muted);margin-top:10px;"></div>
+      <div id="table-pagination" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:10px;">
+        <div id="table-count" style="font-size:13px;color:var(--text-muted);"></div>
+        <div id="pagination-controls" style="display:flex;align-items:center;gap:4px;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -1405,10 +1430,13 @@ let bookings = [];
 let adminLoggedIn = false;
 let deleteTargetId = null;
 let clockInterval = null;
-let timelineDay = 'today'; // 'yesterday' | 'today' | 'tomorrow'
+let timelineDay = 'today';
+let _tablePage = 0;
+let _tablePageLocked = false;
+const PAGE_SIZE = 15; // 'yesterday' | 'today' | 'tomorrow'
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycby3QrKCgoPTtTF3AxO84u39bhbd7-eUXNH65gpUYCDtqwstXiULg8tWlaxSm2lGjBpIKA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzpjvtXUCQUUIQGq12Vx3bMxb3G7FRzrIgEM8LQg-8JZ3n_BJvKwI939xguq-0bDkvdrg/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -1825,7 +1853,6 @@ function renderStatusGrid() {
   document.getElementById('count-soon').textContent = soonCount + ' ending soon';
   // Update nav occupancy counter
   const total = ROOMS.length;
-  const availCount = freeCount + soonCount;
   const occEl = document.getElementById('occupancy-counter');
   if (occEl) {
     const occupiedCount = occCount + soonCount;
@@ -1837,6 +1864,7 @@ function renderStatusGrid() {
 
 // ===== ADMIN TABLE =====
 function renderTable() {
+  if (!_tablePageLocked) _tablePage = 0;
   const tbody = document.getElementById('table-body');
   const search = document.getElementById('search-input').value.toLowerCase().trim();
   const filterRoom = document.getElementById('filter-room').value;
@@ -1859,7 +1887,7 @@ function renderTable() {
   else if (filterDate === 'upcoming') filtered = filtered.filter(b => bookingTimeStatus(b) !== 'past');
   else if (filterDate === 'past') filtered = filtered.filter(b => bookingTimeStatus(b) === 'past');
 
-  // Sort: upcoming first
+  // Sort: latest date+time first
   filtered.sort((a,b) => {
     const da = a.date + a.start, db = b.date + b.start;
     return da > db ? -1 : da < db ? 1 : 0;
@@ -1871,12 +1899,18 @@ function renderTable() {
       <div>No bookings found.</div>
     </div></td></tr>`;
     document.getElementById('table-count').textContent = '';
+    document.getElementById('pagination-controls').innerHTML = '';
     clearBulkSelection();
     return;
   }
 
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  if (_tablePage >= totalPages) _tablePage = totalPages - 1;
+  if (_tablePage < 0) _tablePage = 0;
+  const pageItems = filtered.slice(_tablePage * PAGE_SIZE, (_tablePage + 1) * PAGE_SIZE);
+
   let html = '';
-  for (const b of filtered) {
+  for (const b of pageItems) {
     let statusBadge;
     if (b.status === 'Pending') {
       statusBadge = `<span class="status-badge" style="background:var(--warn-light);color:var(--warn)">Pending</span>`;
@@ -1889,7 +1923,6 @@ function renderTable() {
       else statusBadge = `<span class="status-badge badge-free">Upcoming</span>`;
     }
     const overnightTag = isOvernight(b) ? ' <span style="font-size:10px;color:var(--text-faint);font-weight:600">+1 day</span>' : '';
-
     html += `<tr>
       <td class="cb-cell"><input type="checkbox" class="booking-cb row-cb" data-id="${b.id}" onchange="onRowCbChange()" title="Select"></td>
       <td class="td-room">${escHtml(roomName(b.room))}</td>
@@ -1908,12 +1941,44 @@ function renderTable() {
     </tr>`;
   }
   tbody.innerHTML = html;
-  // Restore previous checkbox selections
+
+  // Restore checkbox selections
   document.querySelectorAll('.row-cb').forEach(cb => {
     if (prevSelected.has(cb.dataset.id)) cb.checked = true;
   });
   updateBulkBar();
-  document.getElementById('table-count').textContent = `Showing ${filtered.length} of ${bookings.length} booking${bookings.length !== 1 ? 's' : ''}`;
+
+  // Count label
+  const start = _tablePage * PAGE_SIZE + 1;
+  const end = Math.min(start + PAGE_SIZE - 1, filtered.length);
+  document.getElementById('table-count').textContent = `Showing ${start}–${end} of ${filtered.length} bookings`;
+
+  // Pagination controls
+  const pc = document.getElementById('pagination-controls');
+  if (totalPages <= 1) { pc.innerHTML = ''; return; }
+  let pages = '';
+  // Prev
+  pages += `<button class="pg-btn" onclick="goToPage(${_tablePage - 1})" ${_tablePage === 0 ? 'disabled' : ''}>‹</button>`;
+  // Page numbers — show at most 5 around current
+  const range = [];
+  for (let i = 0; i < totalPages; i++) {
+    if (i === 0 || i === totalPages - 1 || (i >= _tablePage - 1 && i <= _tablePage + 1)) range.push(i);
+    else if (range[range.length - 1] !== '…') range.push('…');
+  }
+  for (const r of range) {
+    if (r === '…') pages += `<span style="padding:0 4px;color:var(--text-muted);font-size:13px;">…</span>`;
+    else pages += `<button class="pg-btn ${r === _tablePage ? 'pg-active' : ''}" onclick="goToPage(${r})">${r + 1}</button>`;
+  }
+  // Next
+  pages += `<button class="pg-btn" onclick="goToPage(${_tablePage + 1})" ${_tablePage === totalPages - 1 ? 'disabled' : ''}>›</button>`;
+  pc.innerHTML = pages;
+}
+
+function goToPage(page) {
+  _tablePage = page;
+  _tablePageLocked = true;
+  renderTable();
+  _tablePageLocked = false;
 }
 
 function renderActiveNow() {
