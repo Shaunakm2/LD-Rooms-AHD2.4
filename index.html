@@ -1124,6 +1124,7 @@
           <button class="tl-tab" onclick="setTimelineDay('yesterday',event)">Yesterday</button>
           <button class="tl-tab tl-tab-active" id="tl-tab-today" onclick="setTimelineDay('today',event)">Today</button>
           <button class="tl-tab" onclick="setTimelineDay('tomorrow',event)">Tomorrow</button>
+          <input type="date" id="tl-custom-date" class="tl-tab" style="padding:4px 8px;font-size:12px;cursor:pointer;" onchange="setTimelineDay('custom',event)" title="Pick a date">
         </div>
         <div class="timeline-legend" id="timeline-legend">
           <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#C0392B"></div>Occupied</div>
@@ -1436,7 +1437,7 @@ let _tablePageLocked = false;
 const PAGE_SIZE = 15; // 'yesterday' | 'today' | 'tomorrow'
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycby3QrKCgoPTtTF3AxO84u39bhbd7-eUXNH65gpUYCDtqwstXiULg8tWlaxSm2lGjBpIKA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxh8aL1R-l0ndImuuDYpsW7L5-Jw8xfoMmh7oEODpVjHSmefLsREJtuhsaj1JwD8M9qTg/exec';
 
 async function saveData() {
   // no-op: individual operations call API directly
@@ -3076,7 +3077,12 @@ function renderTimeline() {
   let targetDate;
   if (timelineDay === 'yesterday') targetDate = addDaysStr(today, -1);
   else if (timelineDay === 'tomorrow') targetDate = addDaysStr(today, 1);
-  else targetDate = today;
+  else if (timelineDay === 'custom') {
+    const cv = document.getElementById('tl-custom-date')?.value;
+    targetDate = cv || today;
+  } else {
+    targetDate = today;
+  }
   const isToday = targetDate === today;
 
   // Hour tick ruler (every 2 hours for readability)
@@ -3163,10 +3169,8 @@ function renderTimeline() {
 function setTimelineDay(day, event) {
   if (event) event.stopPropagation();
   timelineDay = day;
-  // Update tab active state
   document.querySelectorAll('.tl-tab').forEach(t => t.classList.remove('tl-tab-active'));
-  if (event && event.target) event.target.classList.add('tl-tab-active');
-  // If timeline is collapsed, expand it
+  if (day !== 'custom' && event && event.target) event.target.classList.add('tl-tab-active');
   const wrap = document.getElementById('timeline-wrap');
   const icon = document.getElementById('timeline-toggle-icon');
   if (wrap.style.display === 'none') {
