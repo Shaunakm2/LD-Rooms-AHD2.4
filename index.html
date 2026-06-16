@@ -1170,7 +1170,11 @@
             <label>Start Date</label>
             <input type="date" id="f-date" required>
           </div>
-          <div class="form-group">
+          <div class="form-group" id="f-end-date-wrap" style="display:none;">
+            <label>End Date</label>
+            <input type="date" id="f-end-date">
+          </div>
+          <div class="form-group" id="f-attendees-wrap">
             <label>Number of attendees</label>
             <input type="number" id="f-attendees" min="1" max="200" placeholder="—" required>
           </div>
@@ -2073,6 +2077,9 @@ function resetForm() {
   document.getElementById('f-date').value = todayStr();
   document.getElementById('f-recurring').checked = false;
   document.getElementById('recurring-end-wrap').style.display = 'none';
+  document.getElementById('f-end-date-wrap').style.display = 'none';
+  document.getElementById('f-end-date').value = '';
+  document.getElementById('f-attendees-wrap').style.display = '';
   const dateLabelEl = document.querySelector('label[for="f-date"]') || document.getElementById('f-date').previousElementSibling;
   if (dateLabelEl) dateLabelEl.textContent = 'Start Date';
   if (document.getElementById('edit-id').dataset) delete document.getElementById('edit-id').dataset.fromRequest;
@@ -2089,15 +2096,26 @@ function editBooking(id) {
   document.getElementById('f-start').value = b.start;
   document.getElementById('f-end').value = b.end;
   document.getElementById('f-attendees').value = b.attendees || '';
+
+  // Show end date field for overnight bookings (end time < start time = crosses midnight)
+  const isOvernightEdit = minutesSinceMidnight(b.end) < minutesSinceMidnight(b.start);
+  const endDateWrap = document.getElementById('f-end-date-wrap');
+  const attendeesWrap = document.getElementById('f-attendees-wrap');
+  if (isOvernightEdit) {
+    endDateWrap.style.display = '';
+    document.getElementById('f-end-date').value = addDaysStr(b.date, 1);
+    attendeesWrap.style.display = 'none'; // move attendees below to avoid 3-col squeeze
+  } else {
+    endDateWrap.style.display = 'none';
+    document.getElementById('f-end-date').value = '';
+    attendeesWrap.style.display = '';
+  }
   document.getElementById('form-title').textContent = 'Edit Booking';
   document.getElementById('form-submit-btn').textContent = 'Save Changes';
   document.getElementById('form-error').classList.remove('visible');
-  // Hide recurring for edits — editing individual bookings only
+  // Allow recurring when editing — admin can expand to a date range
   document.getElementById('f-recurring').checked = false;
   document.getElementById('recurring-end-wrap').style.display = 'none';
-  // Update date label to just "Date" when editing
-  const dateLabelEl = document.querySelector('label[for="f-date"]') || document.getElementById('f-date').previousElementSibling;
-  if (dateLabelEl) dateLabelEl.textContent = 'Date';
   document.querySelector('.admin-sidebar').scrollTop = 0;
 }
 
@@ -2151,7 +2169,7 @@ async function submitBooking(e) {
   const start = document.getElementById('f-start').value;
   const end = document.getElementById('f-end').value;
   const attendees = document.getElementById('f-attendees').value;
-  const isRecurring = document.getElementById('f-recurring').checked && !id;
+  const isRecurring = document.getElementById('f-recurring').checked;
   const dateEnd = document.getElementById('f-date-end').value;
 
   if (!room || !booker || !purpose || !date || !start || !end || !attendees) {
@@ -2174,18 +2192,15 @@ async function submitBooking(e) {
 
   // Force fresh data before conflict check
   try { await loadData(true); } catch(e) {}
-  // Single booking edit - conflict check with alternative suggestions
-  if (id) {
+
+  // Single booking edit (non-recurring)
+  if (id && !isRecurring) {
     const conflict = findConflict(room, date, start, end, id);
     if (conflict) {
-      // Show alternatives inline in form error + open conflict modal
       const freeAlts = getFreeRoomsForDate(date, start, end, room);
       let msg = `Conflict: ${roomName(room)} is booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.`;
-      if (freeAlts.length > 0) {
-        msg += ` Free alternatives: ${freeAlts.map(r => r.name).join(', ')}.`;
-      } else {
-        msg += ' No other rooms are free at this time.';
-      }
+      if (freeAlts.length > 0) msg += ` Free alternatives: ${freeAlts.map(r => r.name).join(', ')}.`;
+      else msg += ' No other rooms are free at this time.';
       showError(msg);
       return;
     }
@@ -2197,6 +2212,31 @@ async function submitBooking(e) {
       if (idx !== -1) bookings[idx] = booking;
       await apiUpdate(booking);
       toast('Booking updated.');
+    } catch(err) { toast('Error saving. Try again.', true); } finally { showLoadingOverlay(false); }
+    resetForm(); renderTable(); renderActiveNow(); renderStatusGrid();
+    return;
+  }
+
+  // Recurring edit — delete original, create new bookings for each date in range
+  if (id && isRecurring) {
+    const conflictDates = dates.filter(d => findConflict(room, d, start, end, id));
+    if (conflictDates.length > 0) {
+      showError(`Conflicts on ${conflictDates.length} date(s): ${conflictDates.slice(0,3).map(fmtDate).join(', ')}${conflictDates.length > 3 ? '…' : ''}. Resolve conflicts first.`);
+      return;
+    }
+    try {
+      showLoadingOverlay(true);
+      // Delete original booking
+      await apiPost({ action: 'delete', BookingID: id, silent: true });
+      bookings = bookings.filter(b => b.id !== id);
+      await new Promise(r => setTimeout(r, 1000));
+      // Create new bookings for each date
+      for (const d of dates) {
+        const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Confirmed' };
+        bookings.push(booking);
+        await apiCreate(booking);
+      }
+      toast(`Booking updated across ${dates.length} date(s).`);
     } catch(err) { toast('Error saving. Try again.', true); } finally { showLoadingOverlay(false); }
     resetForm(); renderTable(); renderActiveNow(); renderStatusGrid();
     return;
