@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="IMS Rooms">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
     --bg: #F5F2EC;
@@ -777,7 +778,7 @@
     font-size: 12px;
     line-height: 1.5;
     max-width: 220px;
-    z-index: 500;
+    z-index: 350;
     pointer-events: none;
     opacity: 0;
     transition: opacity 0.15s;
@@ -1303,7 +1304,7 @@
     <div class="modal-sub">Enter the admin password to continue.</div>
     <div class="form-group">
       <label>Password</label>
-      <input type="password" id="login-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter') doLogin()">
+      <input type="password" id="login-pw" placeholder="••••••••" autocomplete="off" onkeydown="if(event.key==='Enter') doLogin()">
       <div class="form-error" id="login-error">Incorrect password.</div>
     </div>
     <div class="modal-actions">
@@ -1467,14 +1468,10 @@ let _tablePage = 0;
 let _tablePageLocked = false;
 let _sortField = 'datetime'; // 'datetime' | 'room' | 'booker' | 'status'
 let _sortDir = 'desc'; // 'asc' | 'desc'
-const PAGE_SIZE = 15; // 'yesterday' | 'today' | 'tomorrow'
+const PAGE_SIZE = 15; // bookings per page in admin table
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbwKIvtlqhpewe7nphk6KXRuTnHZknPYprhkdhLzeQHDwLgVs8QIFH8qLP04q1WMNA66Vw/exec';
-
-async function saveData() {
-  // no-op: individual operations call API directly
-}
+const API_URL = 'https://script.google.com/macros/s/AKfycbxIH7RzINMXSFUN_2FyHcNw_E-jlKmjEHetIY7xTTsQL6ht7We5UrMSCoJTiW25gLwFEA/exec';
 
 async function loadData(silent = false) {
   // Don't overwrite local state with stale sheet data right after a write.
@@ -1554,7 +1551,8 @@ async function loadData(silent = false) {
         start: cleanTime(r.StartTime),
         end: cleanTime(r.EndTime),
         attendees: String(r.Attendees || '').trim(),
-        status: String(r.Status || 'Confirmed').trim()
+        status: String(r.Status || 'Confirmed').trim(),
+        endDate: cleanDate(r.EndDate || '')
       };
     });
     // Sort by creation time (embedded in BookingID as 'b' + timestamp + random)
@@ -1600,7 +1598,8 @@ function _writeRecentlyCompleted() {
 }
 
 async function apiCreate(b) {
-  await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed' });
+  const endDate = b.endDate || (isOvernight(b) ? addDaysStr(b.date, 1) : b.date);
+  await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed', EndDate: endDate });
 }
 
 async function apiUpdateStatus(id, status) {
@@ -1608,9 +1607,10 @@ async function apiUpdateStatus(id, status) {
 }
 
 async function apiUpdate(b) {
+  const endDate = b.endDate || (isOvernight(b) ? addDaysStr(b.date, 1) : b.date);
   await apiPost({ action: 'delete', BookingID: b.id, silent: true });
   await new Promise(r => setTimeout(r, 1500));
-  await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed', isUpdate: true });
+  await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed', EndDate: endDate, isUpdate: true });
 }
 
 async function apiDelete(id) {
@@ -1707,7 +1707,7 @@ function addDaysStr(ds, n) {
 }
 
 function isOvernight(b) {
-  return minutesSinceMidnight(b.end) <= minutesSinceMidnight(b.start);
+  return minutesSinceMidnight(b.end) < minutesSinceMidnight(b.start);
 }
 
 // Splits a booking into 1 or 2 {date, start, end} minute-spans (handles midnight crossover)
@@ -1904,7 +1904,9 @@ function renderStatusGrid() {
     occEl.textContent = freeCount + '/' + total + ' Available';
     occEl.style.color = freeCount > total/2 ? 'var(--ok)' : freeCount > 0 ? 'var(--warn)' : 'var(--danger)';
   }
-  renderTimeline();
+  // Only re-render timeline if it's expanded
+  const tlWrap = document.getElementById('timeline-wrap');
+  if (tlWrap && tlWrap.style.display !== 'none') renderTimeline();
 }
 
 // ===== ADMIN TABLE =====
@@ -2101,14 +2103,12 @@ function editBooking(id) {
   const isOvernightEdit = minutesSinceMidnight(b.end) < minutesSinceMidnight(b.start);
   const endDateWrap = document.getElementById('f-end-date-wrap');
   const attendeesWrap = document.getElementById('f-attendees-wrap');
+  endDateWrap.style.display = isOvernightEdit ? '' : 'none';
+  attendeesWrap.style.display = '';
   if (isOvernightEdit) {
-    endDateWrap.style.display = '';
-    document.getElementById('f-end-date').value = addDaysStr(b.date, 1);
-    attendeesWrap.style.display = 'none'; // move attendees below to avoid 3-col squeeze
+    document.getElementById('f-end-date').value = b.endDate || addDaysStr(b.date, 1);
   } else {
-    endDateWrap.style.display = 'none';
     document.getElementById('f-end-date').value = '';
-    attendeesWrap.style.display = '';
   }
   document.getElementById('form-title').textContent = 'Edit Booking';
   document.getElementById('form-submit-btn').textContent = 'Save Changes';
@@ -2171,6 +2171,7 @@ async function submitBooking(e) {
   const attendees = document.getElementById('f-attendees').value;
   const isRecurring = document.getElementById('f-recurring').checked;
   const dateEnd = document.getElementById('f-date-end').value;
+  const endDateOverride = document.getElementById('f-end-date').value; // overnight end date from edit form
 
   if (!room || !booker || !purpose || !date || !start || !end || !attendees) {
     showError('Please fill in all required fields.'); return;
@@ -2207,7 +2208,8 @@ async function submitBooking(e) {
     try {
       showLoadingOverlay(true);
       const origStatus = bookings.find(b => b.id === id)?.status || 'Confirmed';
-      const booking = { id, room, booker, purpose, date, start, end, attendees: attendees || '', status: origStatus };
+      const computedEndDate = endDateOverride || (minutesSinceMidnight(end) < minutesSinceMidnight(start) ? addDaysStr(date, 1) : date);
+      const booking = { id, room, booker, purpose, date, start, end, attendees: attendees || '', status: origStatus, endDate: computedEndDate };
       const idx = bookings.findIndex(b => b.id === id);
       if (idx !== -1) bookings[idx] = booking;
       await apiUpdate(booking);
@@ -2232,7 +2234,8 @@ async function submitBooking(e) {
       await new Promise(r => setTimeout(r, 1000));
       // Create new bookings for each date
       for (const d of dates) {
-        const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Confirmed' };
+        const computedEndDate = minutesSinceMidnight(end) < minutesSinceMidnight(start) ? addDaysStr(d, 1) : d;
+        const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Confirmed', endDate: computedEndDate };
         bookings.push(booking);
         await apiCreate(booking);
       }
@@ -2257,7 +2260,8 @@ async function submitBooking(e) {
     try {
       showLoadingOverlay(true);
       for (const d of dates) {
-        const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Confirmed' };
+        const computedEndDate = minutesSinceMidnight(end) < minutesSinceMidnight(start) ? addDaysStr(d, 1) : d;
+        const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Confirmed', endDate: computedEndDate };
         bookings.push(booking);
         await apiCreate(booking);
       }
@@ -2512,7 +2516,8 @@ async function submitRequest() {
     showLoadingOverlay(true);
     reqSubmitting = true;
     for (const d of dates) {
-      const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Pending' };
+      const computedEndDate = minutesSinceMidnight(end) < minutesSinceMidnight(start) ? addDaysStr(d, 1) : d;
+      const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Pending', endDate: computedEndDate };
       await apiCreate(booking);
       bookings.push(booking);
     }
@@ -2618,7 +2623,8 @@ async function modifyAndApprove(id) {
     bookings[idx] = b;
     await apiPost({ action: 'delete', BookingID: b.id, silent: true });
     await new Promise(r => setTimeout(r, 1500));
-    await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed', isUpdate: true });
+    const modEndDate = minutesSinceMidnight(b.end) < minutesSinceMidnight(b.start) ? addDaysStr(b.date, 1) : b.date;
+    await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed', EndDate: modEndDate, isUpdate: true });
     toast('Booking modified & approved ✅');
   } catch(e) { toast('Error updating booking.', true); }
   finally { showLoadingOverlay(false); }
@@ -3075,7 +3081,8 @@ async function confirmConflictResolution() {
 
     // Book clean dates with original room
     for (const d of s.cleanDates) {
-      const booking = { id: genId(), room: s.room, booker: s.booker, purpose: s.purpose, date: d, start: s.start, end: s.end, attendees: s.attendees || '', status: 'Confirmed' };
+      const computedEndDate = minutesSinceMidnight(s.end) < minutesSinceMidnight(s.start) ? addDaysStr(d, 1) : d;
+      const booking = { id: genId(), room: s.room, booker: s.booker, purpose: s.purpose, date: d, start: s.start, end: s.end, attendees: s.attendees || '', status: 'Confirmed', endDate: computedEndDate };
       bookings.push(booking);
       await apiCreate(booking);
       count++;
@@ -3085,7 +3092,8 @@ async function confirmConflictResolution() {
     for (const cd of s.conflictDates) {
       const chosenRoom = s.resolutions[cd.date];
       if (chosenRoom === 'skip') continue;
-      const booking = { id: genId(), room: chosenRoom, booker: s.booker, purpose: s.purpose, date: cd.date, start: s.start, end: s.end, attendees: s.attendees || '', status: 'Confirmed' };
+      const computedEndDate = minutesSinceMidnight(s.end) < minutesSinceMidnight(s.start) ? addDaysStr(cd.date, 1) : cd.date;
+      const booking = { id: genId(), room: chosenRoom, booker: s.booker, purpose: s.purpose, date: cd.date, start: s.start, end: s.end, attendees: s.attendees || '', status: 'Confirmed', endDate: computedEndDate };
       bookings.push(booking);
       await apiCreate(booking);
       count++;
