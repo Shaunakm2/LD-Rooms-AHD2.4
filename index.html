@@ -915,7 +915,7 @@
   }
   .tl-ruler-tick {
     flex: 1;
-    font-size: 9px;
+    font-size: 11px;
     color: var(--text-faint);
     font-weight: 500;
     white-space: nowrap;
@@ -947,7 +947,7 @@
     box-shadow: 2px 0 4px rgba(0,0,0,0.05);
   }
   .tl-room-floor-label {
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 400;
     color: var(--text-faint);
     margin-top: 1px;
@@ -1001,7 +1001,7 @@
     line-height: 1.2;
   }
   .tl-booking-time {
-    font-size: 9px;
+    font-size: 11px;
     color: rgba(255,255,255,0.8);
     white-space: nowrap;
   }
@@ -1441,6 +1441,7 @@ const ROOMS = [
 // ===== STATE =====
 let bookings = [];
 let adminLoggedIn = false;
+let _sessionToken = null; // issued by server on login, required for all admin writes
 let deleteTargetId = null;
 let clockInterval = null;
 let timelineDay = 'today';
@@ -1460,6 +1461,7 @@ document.addEventListener('keydown', _touchActivity);
 setInterval(() => {
   if (adminLoggedIn && Date.now() - _lastActivityAt > SESSION_TIMEOUT_MS) {
     adminLoggedIn = false;
+    _sessionToken = null;
     showPage('status');
     toast('Session expired. Please log in again.');
   }
@@ -1471,7 +1473,7 @@ let _sortDir = 'desc'; // 'asc' | 'desc'
 const PAGE_SIZE = 15; // bookings per page in admin table
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbxIH7RzINMXSFUN_2FyHcNw_E-jlKmjEHetIY7xTTsQL6ht7We5UrMSCoJTiW25gLwFEA/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzgfmTOpJniwPhOPDtHVD7nXEyVGrB9_thbE4mgYxmIayLQfKBQU_rPQ1GH4i4RCruDYg/exec';
 
 async function loadData(silent = false) {
   // Don't overwrite local state with stale sheet data right after a write.
@@ -1576,6 +1578,7 @@ let _writeCompletedAt = 0;
 async function apiPost(payload) {
   _writePending = true;
   try {
+    payload._token = _sessionToken; // server validates this on every write
     await fetch(API_URL, {
       method: 'POST',
       mode: 'no-cors',
@@ -1600,6 +1603,12 @@ function _writeRecentlyCompleted() {
 async function apiCreate(b) {
   const endDate = b.endDate || (isOvernight(b) ? addDaysStr(b.date, 1) : b.date);
   await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed', EndDate: endDate });
+}
+
+// Public request flow — does NOT require admin session token (server allows 'createRequest' for anyone)
+async function apiCreateRequest(b) {
+  const endDate = b.endDate || (isOvernight(b) ? addDaysStr(b.date, 1) : b.date);
+  await apiPost({ action: 'createRequest', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', EndDate: endDate });
 }
 
 async function apiUpdateStatus(id, status) {
@@ -2340,6 +2349,7 @@ async function doLogin() {
       _loginLockedUntil = 0;
       _lastActivityAt = Date.now();
       adminLoggedIn = true;
+      _sessionToken = data.token; // server-issued, required for every admin write
       document.getElementById('login-modal').style.display = 'none';
       document.getElementById('login-pw').value = '';
       document.getElementById('login-error').classList.remove('visible');
@@ -2518,7 +2528,7 @@ async function submitRequest() {
     for (const d of dates) {
       const computedEndDate = minutesSinceMidnight(end) < minutesSinceMidnight(start) ? addDaysStr(d, 1) : d;
       const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Pending', endDate: computedEndDate };
-      await apiCreate(booking);
+      await apiCreateRequest(booking);
       bookings.push(booking);
     }
     document.getElementById('req-form-view').style.display = 'none';
@@ -2889,11 +2899,11 @@ async function init() {
   populateRoomSelects();
   document.getElementById('f-date').value = todayStr();
   updateClock();
+  setInterval(updateClock, 1000); // clock ticks every second, independent of data refresh
   await loadData();
   updatePendingDot();
   renderStatusGrid();
   setInterval(async () => {
-    updateClock();
     await loadData(true);
     updatePendingDot();
     if (document.getElementById('page-status').classList.contains('active')) {
