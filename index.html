@@ -915,12 +915,12 @@
   }
   .tl-ruler-tick {
     flex: 1;
-    font-size: 11px;
+    font-size: 10px;
     color: var(--text-faint);
     font-weight: 500;
     white-space: nowrap;
     border-left: 1px solid var(--border-light);
-    padding-left: 3px;
+    padding-left: 2px;
   }
   /* Each room row */
   .tl-row {
@@ -1088,6 +1088,7 @@
   <div class="nav-tabs">
     <button class="nav-tab active" onclick="showPage('status')">Room Status</button>
     <button class="nav-tab" id="admin-btn" onclick="requireAdmin()">Admin Panel<span class="nav-pending-dot" id="nav-pending-dot" style="display:none"></span></button>
+    <button class="nav-tab" id="logout-btn" onclick="doLogout()" style="display:none;color:var(--danger);font-size:12px;">⏻ Logout</button>
   </div>
   <div class="nav-right">
     <div id="occupancy-counter" style="font-size:13px;font-weight:600;color:var(--ok);margin-right:12px;"></div><div id="clock">—</div>
@@ -1107,10 +1108,17 @@
       <div class="pill pill-soon"><div class="dot"></div><span id="count-soon">0 ending soon</span></div>
     </div>
   </div>
-  <div class="legend">
-    <div class="legend-item"><div class="legend-dot" style="background:#1E4A3C"></div>Available</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#C0392B"></div>Occupied</div>
-    <div class="legend-item"><div class="legend-dot" style="background:#C07D00"></div>Ending in &lt;30 min</div>
+  <div class="legend" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+      <div class="legend-item"><div class="legend-dot" style="background:#1E4A3C"></div>Available</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#C0392B"></div>Occupied</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#C07D00"></div>Ending in &lt;30 min</div>
+    </div>
+    <select id="floor-filter" onchange="renderStatusGrid()" style="padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:13px;outline:none;">
+      <option value="">All Floors</option>
+      <option value="2nd Floor">2nd Floor</option>
+      <option value="4th Floor">4th Floor</option>
+    </select>
   </div>
 
   <!-- TODAY'S TIMELINE -->
@@ -1118,7 +1126,7 @@
     <div class="timeline-header" style="cursor:pointer;user-select:none;">
       <div style="display:flex;align-items:center;gap:8px;" onclick="toggleTimeline()">
         <div class="timeline-title">Daily Overview</div>
-        <span id="timeline-toggle-icon" style="font-size:12px;color:var(--text-muted);transition:transform 0.2s;">▼</span>
+        <span id="timeline-toggle-icon" style="font-size:12px;color:var(--text-muted);transition:transform 0.2s;transform:rotate(0deg)">▼</span>
       </div>
       <div style="display:flex;align-items:center;gap:12px;">
         <div class="timeline-day-tabs" id="timeline-day-tabs">
@@ -1134,7 +1142,7 @@
         </div>
       </div>
     </div>
-    <div class="timeline-wrap" id="timeline-wrap" style="display:none">
+    <div class="timeline-wrap" id="timeline-wrap">
       <div class="tl-bar-container">
         <div class="tl-bar-inner" id="tl-bar-inner"></div>
       </div>
@@ -1462,6 +1470,7 @@ setInterval(() => {
   if (adminLoggedIn && Date.now() - _lastActivityAt > SESSION_TIMEOUT_MS) {
     adminLoggedIn = false;
     _sessionToken = null;
+    document.getElementById('logout-btn').style.display = 'none';
     showPage('status');
     toast('Session expired. Please log in again.');
   }
@@ -1834,8 +1843,10 @@ function renderStatusGrid() {
 
   let freeCount = 0, occCount = 0, soonCount = 0;
   let html = '';
+  const floorFilter = document.getElementById('floor-filter')?.value || '';
 
   for (const room of ROOMS) {
+    if (floorFilter && room.floor !== floorFilter) continue;
     const { status, booking, remaining, pct, nextBookings } = getRoomStatus(room.id);
     if (status === 'free') freeCount++;
     else if (status === 'occupied') occCount++;
@@ -2323,6 +2334,14 @@ function requireAdmin() {
   }
 }
 
+function doLogout() {
+  adminLoggedIn = false;
+  _sessionToken = null;
+  document.getElementById('logout-btn').style.display = 'none';
+  showPage('status');
+  toast('Logged out.');
+}
+
 async function doLogin() {
   const pw = document.getElementById('login-pw').value;
   if (!pw) return;
@@ -2349,7 +2368,8 @@ async function doLogin() {
       _loginLockedUntil = 0;
       _lastActivityAt = Date.now();
       adminLoggedIn = true;
-      _sessionToken = data.token; // server-issued, required for every admin write
+      _sessionToken = data.token;
+      document.getElementById('logout-btn').style.display = '';
       document.getElementById('login-modal').style.display = 'none';
       document.getElementById('login-pw').value = '';
       document.getElementById('login-error').classList.remove('visible');
@@ -2903,6 +2923,7 @@ async function init() {
   await loadData();
   updatePendingDot();
   renderStatusGrid();
+  renderTimeline();
   setInterval(async () => {
     await loadData(true);
     updatePendingDot();
@@ -3217,9 +3238,9 @@ function renderTimeline() {
   const isToday = targetDate === today;
 
   // Hour tick ruler (every 2 hours for readability)
-  const TICK_HOURS = [0,2,4,6,8,10,12,14,16,18,20,22];
+  const TICK_HOURS = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23];
   const tickLabels = TICK_HOURS.map(h => {
-    const label = h === 0 ? '12 AM' : h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h-12) + ' PM';
+    const label = h === 0 ? '12a' : h < 12 ? h + 'a' : h === 12 ? '12p' : (h-12) + 'p';
     const leftPct = (h * 60 / DAY_MINS) * 100;
     return `<div class="tl-ruler-tick" style="position:absolute;left:${leftPct}%">${label}</div>`;
   }).join('');
@@ -3295,6 +3316,15 @@ function renderTimeline() {
     </div>
     ${rowsHtml}
   `;
+
+  // Scroll to current time on Today view
+  if (isToday) {
+    const barContainer = document.querySelector('.tl-bar-container');
+    if (barContainer) {
+      const scrollPct = Math.max(0, (nowPct / 100) - 0.2); // show a bit before current time
+      barContainer.scrollLeft = barContainer.scrollWidth * scrollPct;
+    }
+  }
 }
 
 function setTimelineDay(day, event) {
