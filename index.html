@@ -1108,12 +1108,7 @@
       <div class="pill pill-soon"><div class="dot"></div><span id="count-soon">0 ending soon</span></div>
     </div>
   </div>
-  <div class="legend" style="justify-content:space-between;flex-wrap:wrap;gap:8px;">
-    <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
-      <div class="legend-item"><div class="legend-dot" style="background:#1E4A3C"></div>Available</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#C0392B"></div>Occupied</div>
-      <div class="legend-item"><div class="legend-dot" style="background:#C07D00"></div>Ending in &lt;30 min</div>
-    </div>
+  <div class="legend" style="justify-content:flex-end;padding:0 2rem 0.5rem;">
     <select id="floor-filter" onchange="renderStatusGrid()" style="padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:13px;outline:none;">
       <option value="">All Floors</option>
       <option value="2nd Floor">2nd Floor</option>
@@ -1381,9 +1376,10 @@
     </div>
     <div id="req-confirm-view" style="display:none">
       <div class="confirm-box">
-        <div class="confirm-icon">✅</div>
-        <h3>Request Submitted!</h3>
-        <p>Your booking request has been sent.<br>An admin will review and confirm it shortly.</p>
+        <div class="confirm-icon" id="req-confirm-icon">✅</div>
+        <h3 id="req-confirm-title">Request Submitted!</h3>
+        <p id="req-confirm-msg">Your booking request has been sent.<br>An admin will review and confirm it shortly.</p>
+        <div id="req-conflict-notice" style="display:none;margin-top:1rem;padding:10px 14px;background:#FFF8EC;border:1px solid #F0D9B0;border-radius:var(--radius);font-size:13px;color:#92600A;text-align:left;"></div>
         <div class="modal-actions" style="justify-content:center;margin-top:1.5rem">
           <button class="btn btn-primary" onclick="closeRequestModal()">Done</button>
         </div>
@@ -2527,19 +2523,20 @@ async function submitRequest() {
     errEl.classList.add('visible'); return;
   }
 
-  // Conflict check — inform requester but still allow Pending submission
-  // (admin will see conflict when approving)
+  // Conflict check — warn requester but still allow submission
+  // Admin sees the conflict note when reviewing
   const conflictWarnings = [];
   for (const d of dates) {
     const conflict = findConflict(room, d, start, end, null);
     if (conflict) conflictWarnings.push({ date: d, conflict });
   }
-  if (conflictWarnings.length > 0) {
+
+  // If conflicts found, append a note to purpose so admin sees it in pending list
+  let finalPurpose = purpose;
+  let hasConflict = conflictWarnings.length > 0;
+  if (hasConflict) {
     const first = conflictWarnings[0];
-    errEl.textContent = `Conflict on ${fmtDate(first.date)}: ${roomName(room)} is already booked ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker}. Please choose a different room or time.`;
-    errEl.classList.add('visible');
-    reqSubmitting = false;
-    return;
+    finalPurpose = purpose + ` [⚠️ Overlap: ${roomName(room)} booked ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker} on ${fmtDate(first.date)}]`;
   }
 
   try {
@@ -2547,13 +2544,24 @@ async function submitRequest() {
     reqSubmitting = true;
     for (const d of dates) {
       const computedEndDate = minutesSinceMidnight(end) < minutesSinceMidnight(start) ? addDaysStr(d, 1) : d;
-      const booking = { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Pending', endDate: computedEndDate };
+      const booking = { id: genId(), room, booker, purpose: finalPurpose, date: d, start, end, attendees: attendees || '', status: 'Pending', endDate: computedEndDate };
       await apiCreateRequest(booking);
       bookings.push(booking);
     }
     document.getElementById('req-form-view').style.display = 'none';
     document.getElementById('req-confirm-view').style.display = '';
     reqSubmitting = false;
+
+    // Show conflict notice on confirmation screen if overlaps detected
+    const noticeEl = document.getElementById('req-conflict-notice');
+    if (hasConflict && noticeEl) {
+      const first = conflictWarnings[0];
+      noticeEl.style.display = '';
+      noticeEl.innerHTML = `⚠️ <strong>Note:</strong> ${roomName(room)} already has a booking from ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} on ${fmtDate(first.date)}. Your request has been submitted — please check with the admin for confirmation.`;
+    } else if (noticeEl) {
+      noticeEl.style.display = 'none';
+    }
+
     launchConfetti();
     updatePendingDot();
   } catch(e) {
