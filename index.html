@@ -2633,6 +2633,12 @@ function toggleModifyForm(id) {
 async function approvePending(id) {
   const idx = bookings.findIndex(b => b.id === id);
   if (idx === -1) return;
+  const b = bookings[idx];
+  // Check conflict against all confirmed bookings (excluding self)
+  const conflict = findConflict(b.room, b.date, b.start, b.end, id);
+  if (conflict) {
+    if (!confirm(`⚠️ Conflict: ${roomName(b.room)} is already booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker} on ${fmtDate(conflict.date || b.date)}.\n\nApprove anyway?`)) return;
+  }
   try {
     showLoadingOverlay(true);
     bookings[idx].status = 'Confirmed';
@@ -2729,17 +2735,21 @@ async function bulkApprovePending() {
   if (ids.length === 0) return;
   if (!confirm(`Approve ${ids.length} pending request(s)?`)) return;
   showLoadingOverlay(true);
-  let approved = 0;
+  let approved = 0, conflicted = 0;
   try {
     for (const id of ids) {
       const idx = bookings.findIndex(b => b.id === id);
-      if (idx !== -1) {
-        bookings[idx].status = 'Confirmed';
-        await apiUpdateStatus(id, 'Confirmed');
-        approved++;
-      }
+      if (idx === -1) continue;
+      const b = bookings[idx];
+      const conflict = findConflict(b.room, b.date, b.start, b.end, id);
+      if (conflict) { conflicted++; continue; } // skip conflicting
+      bookings[idx].status = 'Confirmed';
+      await apiUpdateStatus(id, 'Confirmed');
+      approved++;
     }
-    toast(`${approved} request(s) approved ✅`);
+    let msg = `${approved} request(s) approved ✅`;
+    if (conflicted > 0) msg += ` — ${conflicted} skipped due to conflicts.`;
+    toast(msg);
   } catch(e) { toast('Error during bulk approve.', true); }
   finally { showLoadingOverlay(false); }
   renderPendingRequests(); renderTable(); renderStatusGrid(); updatePendingDot();
