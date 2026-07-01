@@ -1082,7 +1082,8 @@
 <nav>
   <div class="nav-brand">
     <div>
-      <div class="nav-title">Room Booking Tracker</div>
+      <div class="nav-title">Training Rooms</div>
+      <div id="status-date" style="font-size:11px;color:var(--text-muted);margin-top:1px;">—</div>
     </div>
   </div>
   <div class="nav-tabs">
@@ -1091,30 +1092,17 @@
     <button class="nav-tab" id="logout-btn" onclick="doLogout()" style="display:none;color:var(--danger);font-size:12px;">⏻ Logout</button>
   </div>
   <div class="nav-right">
-    <div id="occupancy-counter" style="font-size:13px;font-weight:600;color:var(--ok);margin-right:12px;"></div><div id="clock">—</div>
+    <span id="count-free" style="display:none"></span>
+    <span id="count-occ" style="display:none"></span>
+    <span id="count-soon" style="display:none"></span>
+    <div id="occupancy-counter" style="font-size:13px;font-weight:600;color:var(--ok);margin-right:4px;"></div>
+    <div id="clock">—</div>
   </div>
 </nav>
 
 <!-- STATUS PAGE -->
 <div class="page active" id="page-status">
-  <div class="status-header">
-    <div>
-      <h1>Training Rooms</h1>
-      <p id="status-date">—</p>
-    </div>
-    <div class="summary-pills">
-      <div class="pill pill-ok"><div class="dot"></div><span id="count-free">0 available</span></div>
-      <div class="pill pill-busy"><div class="dot"></div><span id="count-occ">0 occupied</span></div>
-      <div class="pill pill-soon"><div class="dot"></div><span id="count-soon">0 ending soon</span></div>
-    </div>
-  </div>
-  <div class="legend" style="justify-content:flex-end;padding:0 2rem 0.5rem;">
-    <select id="floor-filter" onchange="renderStatusGrid()" style="padding:5px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:13px;outline:none;">
-      <option value="">All Floors</option>
-      <option value="2nd Floor">2nd Floor</option>
-      <option value="4th Floor">4th Floor</option>
-    </select>
-  </div>
+
 
   <!-- TODAY'S TIMELINE -->
   <div class="timeline-section" id="timeline-section">
@@ -1130,6 +1118,11 @@
           <button class="tl-tab" onclick="setTimelineDay('tomorrow',event)">Tomorrow</button>
           <input type="date" id="tl-custom-date" class="tl-tab" style="padding:4px 8px;font-size:12px;cursor:pointer;" onchange="setTimelineDay('custom',event)" title="Pick a date">
         </div>
+        <select id="floor-filter" onchange="renderStatusGrid();renderTimeline();" style="padding:4px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;outline:none;">
+          <option value="">All Floors</option>
+          <option value="2nd Floor">2nd Floor</option>
+          <option value="4th Floor">4th Floor</option>
+        </select>
         <div class="timeline-legend" id="timeline-legend">
           <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#C0392B"></div>Occupied</div>
           <div class="timeline-legend-item"><div class="timeline-legend-dot" style="background:#C07D00"></div>Ending Soon</div>
@@ -3280,8 +3273,10 @@ function renderTimeline() {
   // Now line pct
   const nowPct = (now / DAY_MINS) * 100;
 
+  const tlFloorFilter = document.getElementById('floor-filter')?.value || '';
   let rowsHtml = '';
   for (const room of ROOMS) {
+    if (tlFloorFilter && room.floor !== tlFloorFilter) continue;
     const roomBookings = bookings.filter(b =>
       b.room === room.id && (b.status === 'Confirmed' || !b.status)
     );
