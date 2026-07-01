@@ -2536,7 +2536,9 @@ async function submitRequest() {
   let hasConflict = conflictWarnings.length > 0;
   if (hasConflict) {
     const first = conflictWarnings[0];
-    finalPurpose = purpose + ` [⚠️ Overlap: ${roomName(room)} booked ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker} on ${fmtDate(first.date)}]`;
+    const isPending = first.conflict.status === 'Pending';
+    const statusLabel = isPending ? 'a pending request' : 'a confirmed booking';
+    finalPurpose = purpose + ` [⚠️ Overlap: ${roomName(room)} has ${statusLabel} ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker} on ${fmtDate(first.date)}]`;
   }
 
   try {
@@ -2556,8 +2558,10 @@ async function submitRequest() {
     const noticeEl = document.getElementById('req-conflict-notice');
     if (hasConflict && noticeEl) {
       const first = conflictWarnings[0];
+      const isPending = first.conflict.status === 'Pending';
+      const statusLabel = isPending ? 'a pending request' : 'a confirmed booking';
       noticeEl.style.display = '';
-      noticeEl.innerHTML = `⚠️ <strong>Note:</strong> ${roomName(room)} already has a booking from ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} on ${fmtDate(first.date)}. Your request has been submitted — please check with the admin for confirmation.`;
+      noticeEl.innerHTML = `⚠️ <strong>Note:</strong> ${roomName(room)} already has ${statusLabel} from ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} on ${fmtDate(first.date)} by ${first.conflict.booker}. Your request has been submitted — please check with the admin for confirmation.`;
     } else if (noticeEl) {
       noticeEl.style.display = 'none';
     }
@@ -3216,7 +3220,20 @@ async function confirmCancelBooking() {
 
 
 
-// ===== DAILY OVERVIEW (Continuous Bar Timeline) =====
+function findConflictConfirmedOnly(room, date, start, end, excludeId) {
+  const newSpans = bookingSpans({ date, start, end });
+  for (const b of bookings) {
+    if (b.room !== room) continue;
+    if (excludeId && b.id === excludeId) continue;
+    if (b.status !== 'Confirmed' && b.status !== '') continue; // only confirmed blocks
+    for (const ex of bookingSpans(b)) {
+      for (const ns of newSpans) {
+        if (ex.date === ns.date && ns.start < ex.end && ns.end > ex.start) return b;
+      }
+    }
+  }
+  return null;
+}
 function getBookingSpansLocal(b) {
   const s = minutesSinceMidnight(b.start);
   const e = minutesSinceMidnight(b.end);
