@@ -6,6 +6,7 @@
 <title>Room Booking — Knowledge Centre</title>
 
 <meta name="theme-color" content="#1a3a6b">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://script.google.com https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:;">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="IMS Rooms">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -20,7 +21,7 @@
     --border-light: #E8E4DC;
     --text: #1A1916;
     --text-muted: #6B6860;
-    --text-faint: #9B9890;
+    --text-faint: #7A7870;
     --accent: #1E4A3C;
     --accent-light: #E2EDE9;
     --accent-mid: #2E6B56;
@@ -205,7 +206,7 @@
   .status-badge {
     padding: 4px 10px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -908,7 +909,7 @@
   /* Hour tick ruler */
   .tl-ruler {
     display: flex;
-    margin-left: 130px;
+    margin-left: 160px;
     margin-bottom: 2px;
     position: relative;
     height: 18px;
@@ -931,8 +932,8 @@
   }
   .tl-row:last-child { border-bottom: 1px solid var(--border-light); }
   .tl-room-label {
-    width: 130px;
-    min-width: 130px;
+    width: 160px;
+    min-width: 160px;
     padding: 6px 10px 6px 14px;
     font-size: 11px;
     font-weight: 600;
@@ -1294,7 +1295,7 @@
 </div>
 
 <!-- LOGIN MODAL -->
-<div class="modal-overlay" id="login-modal" style="display:none;">
+<div class="modal-overlay" id="login-modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Admin Login">
   <div class="modal-box">
     <div class="modal-title">Admin Access</div>
     <div class="modal-sub">Enter the admin password to continue.</div>
@@ -1311,7 +1312,7 @@
 </div>
 
 <!-- REQUEST BOOKING MODAL -->
-<div class="modal-overlay" id="request-modal" style="display:none;" onclick="if(event.target===this&&!reqSubmitting)closeRequestModal()">
+<div class="modal-overlay" id="request-modal" style="display:none;" onclick="if(event.target===this&&!reqSubmitting)closeRequestModal()" role="dialog" aria-modal="true" aria-label="Request a Booking">
   <div class="modal-box-lg">
     <div id="req-form-view">
       <div class="modal-title">Request a Booking</div>
@@ -1382,7 +1383,7 @@
 </div>
 
 <!-- REJECT MODAL -->
-<div class="modal-overlay" id="reject-modal" style="display:none;">
+<div class="modal-overlay" id="reject-modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Reject Request">
   <div class="modal-box">
     <div class="modal-title">Reject Request?</div>
     <div class="modal-sub" id="reject-modal-sub">This request will be removed from pending.</div>
@@ -1398,7 +1399,7 @@
 </div>
 
 <!-- DELETE CONFIRM MODAL -->
-<div class="modal-overlay" id="delete-modal" style="display:none;">
+<div class="modal-overlay" id="delete-modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Delete Booking">
   <div class="modal-box">
     <div class="modal-title">Delete Booking?</div>
     <div class="modal-sub" id="delete-modal-sub">This cannot be undone.</div>
@@ -1410,7 +1411,7 @@
 </div>
 
 <!-- TOAST CONTAINER -->
-<div class="toast-container" id="toast-container"></div>
+<div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="false"></div>
 
 <!-- TIMELINE TOOLTIP -->
 <div class="tl-tooltip" id="tl-tooltip">
@@ -1471,16 +1472,25 @@ let _sortDir = 'desc'; // 'asc' | 'desc'
 const PAGE_SIZE = 15; // bookings per page in admin table
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbzGdBbQSw929rx0Q4V7IFJnSxMMFliXh-ZYFHEXN6S6EfYcSsaL5I9v_m09LIRbV_xvyw/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbz0QDPMl8bBcbFv7CwVWtWrFiMZuKRWvkFzEyw-v2s0xPf9DFUjC3n9VbbGEODS9IIM/exec';
 
 async function loadData(silent = false) {
-  // Don't overwrite local state with stale sheet data right after a write.
-  // Sheet takes 2-4s to commit; block silent refreshes for 10s after any write.
   if (silent && _writeRecentlyCompleted()) return;
   try {
     if (!silent) showLoadingOverlay(true);
-    const res = await fetch(API_URL);
-    const data = await res.json();
+    // Paginated fetch: load in pages of 200 rows to keep each request fast
+    const PAGE_LIMIT = 200;
+    let page = 0, allRows = [], done = false;
+    while (!done) {
+      const res = await fetch(`${API_URL}?page=${page}&limit=${PAGE_LIMIT}`);
+      const json = await res.json();
+      // Handle both paginated { data, total } and legacy flat array responses
+      const rows = Array.isArray(json) ? json : (json.data || []);
+      allRows = allRows.concat(rows);
+      if (Array.isArray(json) || rows.length < PAGE_LIMIT) done = true;
+      else page++;
+    }
+    const data = allRows;
     bookings = data.map(r => {
 
       // Clean time: handle all Google Sheets time formats
@@ -2929,6 +2939,30 @@ window.addEventListener('beforeunload', e => {
   }
 });
 
+function closeRejectModal() { document.getElementById('reject-modal').style.display = 'none'; rejectTargetId = null; }
+function closeDeleteModal() { document.getElementById('delete-modal').style.display = 'none'; deleteTargetId = null; }
+function closeConflictModal() { document.getElementById('conflict-modal').style.display = 'none'; }
+
+// Escape key closes topmost open modal
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const modals = ['cancel-modal','conflict-modal','sched-modal','reject-modal','delete-modal'];
+  for (const id of modals) {
+    const el = document.getElementById(id);
+    if (el && el.style.display !== 'none') {
+      if (id === 'cancel-modal') closeCancelModal();
+      else if (id === 'conflict-modal') closeConflictModal();
+      else if (id === 'sched-modal') closeSchedModal();
+      else if (id === 'reject-modal') closeRejectModal();
+      else if (id === 'delete-modal') closeDeleteModal();
+      return;
+    }
+  }
+  // Request modal - only if not submitting
+  const reqModal = document.getElementById('request-modal');
+  if (reqModal && reqModal.style.display !== 'none' && !reqSubmitting) closeRequestModal();
+});
+
 // ===== INIT =====
 async function init() {
   populateRoomSelects();
@@ -2982,7 +3016,7 @@ function openSchedModal(roomId) {
 
     let dayHtml = '';
     if (dayBookings.length === 0) {
-      dayHtml = '<div class="sched-free-all">Fully available all day</div>';
+      dayHtml = '<div class="sched-no-bookings">No bookings</div>';
     } else {
       for (const { b, span } of dayBookings) {
         const isPast = ds < todayStr() || (ds === todayStr() && span.end <= nowMinutes());
@@ -3341,7 +3375,7 @@ function renderTimeline() {
   }
 
   container.innerHTML = `
-    <div style="position:relative;margin-left:130px;margin-right:14px;height:18px;margin-bottom:2px;">
+    <div style="position:relative;margin-left:160px;margin-right:14px;height:18px;margin-bottom:2px;">
       ${tickLabels}
     </div>
     ${rowsHtml}
