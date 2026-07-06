@@ -14,35 +14,40 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
-    --bg: #F5F2EC;
-    --surface: #FEFCF8;
-    --surface2: #EFECE4;
-    --border: #D8D4CA;
-    --border-light: #E8E4DC;
-    --text: #1A1916;
-    --text-muted: #6B6860;
-    --text-faint: #7A7870;
-    --accent: #1E4A3C;
-    --accent-light: #E2EDE9;
-    --accent-mid: #2E6B56;
-    --danger: #8B2020;
-    --danger-light: #FAEAEA;
-    --warn: #7A4A00;
-    --warn-light: #FDF3E3;
-    --ok: #1E4A3C;
-    --ok-light: #E2EDE9;
+    --bg: #F7F3FF;
+    --surface: rgba(255,255,255,0.85);
+    --surface2: #EDE8F8;
+    --border: #D4C8F0;
+    --border-light: #E8E2F8;
+    --text: #1E1B2E;
+    --text-muted: #5C5478;
+    --text-faint: #8B83A8;
+    --accent: #5B4FCF;
+    --accent-light: #EDE8FF;
+    --accent-mid: #7B6FDF;
+    --danger: #D64045;
+    --danger-light: #FDECEA;
+    --warn: #B06B00;
+    --warn-light: #FFF3E0;
+    --ok: #2E7D52;
+    --ok-light: #E6F4EC;
+    --floor2: #4A90D9;
+    --floor4: #9B59B6;
     --font-display: 'Syne', sans-serif;
     --font-body: 'DM Sans', sans-serif;
-    --radius: 10px;
-    --radius-lg: 16px;
-    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --radius: 12px;
+    --radius-lg: 20px;
+    --shadow: 0 2px 8px rgba(91,79,207,0.08), 0 1px 3px rgba(0,0,0,0.04);
+    --shadow-lg: 0 8px 32px rgba(91,79,207,0.12), 0 2px 8px rgba(0,0,0,0.06);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     font-family: var(--font-body);
-    background: var(--bg);
+    background-color: var(--bg);
+    background-image: radial-gradient(circle, rgba(91,79,207,0.08) 1px, transparent 1px);
+    background-size: 28px 28px;
     color: var(--text);
     min-height: 100vh;
     font-size: 15px;
@@ -50,8 +55,10 @@
 
   /* NAV */
   nav {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    background: rgba(247,243,255,0.80);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(212,200,240,0.6);
     padding: 0 2rem;
     display: flex;
     align-items: center;
@@ -68,14 +75,15 @@
   }
   .nav-logo {
     width: 36px; height: 36px;
-    background: var(--accent);
-    border-radius: 8px;
+    background: linear-gradient(135deg, #7B6FDF 0%, #5B4FCF 100%);
+    border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
     color: white;
     font-family: var(--font-display);
     font-size: 16px;
     font-weight: 700;
     letter-spacing: -0.5px;
+    box-shadow: 0 2px 8px rgba(91,79,207,0.3);
   }
   .nav-title {
     font-family: var(--font-display);
@@ -169,19 +177,26 @@
   }
 
   .room-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.9);
     border-radius: var(--radius-lg);
     padding: 20px;
-    transition: box-shadow 0.2s, transform 0.2s;
+    transition: box-shadow 0.25s, transform 0.25s;
     cursor: default;
     position: relative;
     overflow: hidden;
+    box-shadow: var(--shadow);
   }
-  .room-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: translateY(-1px); }
-  .room-card.occupied { border-left: 4px solid #C0392B; }
-  .room-card.free { border-left: 4px solid #1E4A3C; }
-  .room-card.ending-soon { border-left: 4px solid #C07D00; }
+  .room-card::before { display: none; }
+  .room-card.free::before { display: none; }
+  .room-card.occupied::before { display: none; }
+  .room-card.ending-soon::before { display: none; }
+  .room-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+  .room-card.occupied { border-left: none; }
+  .room-card.free { border-left: none; }
+  .room-card.ending-soon { border-left: none; }
 
   .room-card-top {
     display: flex;
@@ -333,11 +348,12 @@
     transition: all 0.15s;
   }
   .btn-primary {
-    background: var(--accent);
+    background: linear-gradient(135deg, #5B4FCF, #7B6FDF);
     color: white;
-    border-color: var(--accent);
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(91,79,207,0.3);
   }
-  .btn-primary:hover { background: var(--accent-mid); }
+  .btn-primary:hover { background: linear-gradient(135deg, #4A3FBF, #6B5FCF); box-shadow: 0 4px 12px rgba(91,79,207,0.4); }
   .btn-danger {
     background: var(--danger-light);
     color: var(--danger);
@@ -437,12 +453,15 @@
     overflow-y: auto;
   }
   .modal-box {
-    background: var(--surface);
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.95);
     border-radius: var(--radius-lg);
     padding: 2rem;
     width: 400px;
     max-width: calc(100vw - 2rem);
-    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lg);
   }
   .modal-title {
     font-family: var(--font-display);
@@ -504,7 +523,9 @@
 
   /* SCHEDULE MODAL */
   .sched-modal-box {
-    background: var(--surface);
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-radius: var(--radius-lg);
     padding: 0;
     width: 680px;
@@ -616,7 +637,9 @@
 
   /* REQUEST MODAL */
   .modal-box-lg {
-    background: var(--surface);
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-radius: var(--radius-lg);
     padding: 1.5rem;
     width: 480px;
@@ -891,10 +914,13 @@
   .timeline-legend-item { display: flex; align-items: center; gap: 4px; }
   .timeline-legend-dot { width: 8px; height: 8px; border-radius: 2px; }
   .timeline-wrap {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.9);
     border-radius: var(--radius-lg);
     overflow: hidden;
+    box-shadow: var(--shadow);
   }
 
   /* Continuous bar timeline */
@@ -990,8 +1016,8 @@
     z-index: 2;
     min-width: 2px;
   }
-  .tl-booking-block.confirmed { background: #C0392B; }
-  .tl-booking-block.ending-soon { background: #C07D00; }
+  .tl-booking-block.confirmed { background: #E57373; }
+  .tl-booking-block.ending-soon { background: #FFB74D; }
   .tl-booking-label {
     font-size: 10px;
     font-weight: 600;
@@ -1424,16 +1450,16 @@
 <script>
 // ===== CONFIGURATION =====
 const ROOMS = [
-  { id: 'brihaspati', name: 'Brihaspati', floor: '2nd Floor' },
-  { id: 'vedvyas', name: 'Vedvyas', floor: '2nd Floor' },
-  { id: 'conf2f', name: '2nd Floor Conference Room', floor: '2nd Floor' },
-  { id: 'parashurama', name: 'Parashurama', floor: '4th Floor' },
-  { id: 'pingala', name: 'Pingala', floor: '4th Floor' },
-  { id: 'chanakya', name: 'Chanakya', floor: '4th Floor' },
-  { id: 'bhardwaja', name: 'Bhardwaja', floor: '4th Floor' },
-  { id: 'vishwamitra', name: 'Vishwamitra', floor: '2nd Floor' },
-  { id: 'vasistha', name: 'Vasistha', floor: '2nd Floor' },
-  { id: 'sharada', name: 'Sharada', floor: '2nd Floor' },
+  { id: 'brihaspati',  name: 'Brihaspati',              floor: '2nd Floor', color: '#7B6FDF' }, // lavender
+  { id: 'vedvyas',     name: 'Vedvyas',                  floor: '2nd Floor', color: '#4CAF7D' }, // sage
+  { id: 'conf2f',      name: '2nd Floor Conference Room',floor: '2nd Floor', color: '#4A90D9' }, // sky blue
+  { id: 'parashurama', name: 'Parashurama',              floor: '4th Floor', color: '#E07B54' }, // terracotta
+  { id: 'pingala',     name: 'Pingala',                  floor: '4th Floor', color: '#D4A017' }, // amber
+  { id: 'chanakya',    name: 'Chanakya',                 floor: '4th Floor', color: '#9B59B6' }, // violet
+  { id: 'bhardwaja',   name: 'Bhardwaja',                floor: '4th Floor', color: '#2BBCB0' }, // teal
+  { id: 'vishwamitra', name: 'Vishwamitra',              floor: '2nd Floor', color: '#E87A8F' }, // rose
+  { id: 'vasistha',    name: 'Vasistha',                 floor: '2nd Floor', color: '#5BA4CF' }, // cerulean
+  { id: 'sharada',     name: 'Sharada',                  floor: '2nd Floor', color: '#8BC34A' }, // lime green
 ];
 
 // ===== STATE =====
@@ -1850,6 +1876,7 @@ function renderStatusGrid() {
       badgeClass = 'badge-occupied'; badgeText = 'In Use'; cardClass = 'occupied'; barClass = '';
     }
 
+    const roomColor = room.color || 'var(--accent)';
     let bodyHtml = '';
     if (booking) {
       const mins = remaining;
@@ -1872,9 +1899,14 @@ function renderStatusGrid() {
       bodyHtml += `<div class="room-time-bar"><div class="room-time-fill ${barClass}" style="width:${pct}%"></div></div>`;
       bodyHtml += `<div class="room-time-label">${fmtTime(booking.start)} – ${fmtTime(booking.end)}</div>`;
     } else {
-      bodyHtml += `<div class="room-info-row">
+      // Show "Free until next booking" or "Free all day"
+      const nextToday = nextBookings[0];
+      const freeUntilText = nextToday
+        ? `Free until <strong>${fmtTime(nextToday.start)}</strong>`
+        : 'Free all day';
+      bodyHtml += `<div class="room-info-row" style="color:${roomColor}">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        <span>No active booking</span>
+        <span>${freeUntilText}</span>
       </div>`;
       bodyHtml += `<div class="room-time-bar"><div class="room-time-fill free" style="width:0%"></div></div>`;
       bodyHtml += `<div class="room-time-label">&nbsp;</div>`;
@@ -1888,10 +1920,20 @@ function renderStatusGrid() {
       </div>`;
     }
 
-    html += `<div class="room-card ${cardClass}">
+    const pendingForRoom = bookings.filter(b => b.room === room.id && b.status === 'Pending').length;
+    const pendingTag = pendingForRoom > 0
+      ? `<span style="font-size:11px;background:var(--warn-light);color:var(--warn);padding:2px 7px;border-radius:999px;font-weight:600;margin-left:6px;">${pendingForRoom} pending</span>`
+      : '';
+    const topStrip = status === 'free'
+      ? `background:linear-gradient(90deg,${roomColor},${roomColor}CC)`
+      : status === 'occupied'
+        ? 'background:linear-gradient(90deg,#E57373,#D64045)'
+        : 'background:linear-gradient(90deg,#FFB74D,#FF9800)';
+    html += `<div class="room-card ${cardClass}" data-floor="${escHtml(room.floor)}" style="--room-color:${roomColor}">
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius-lg) var(--radius-lg) 0 0;${topStrip}"></div>
       <div class="room-card-top" onclick="openSchedModal('${room.id}')" title="Click to view 30-day schedule" style="cursor:pointer">
         <div>
-          <div class="room-name">${escHtml(room.name)}</div>
+          <div class="room-name">${escHtml(room.name)}${pendingTag}</div>
           <div class="room-floor">${escHtml(room.floor)}</div>
         </div>
         <span class="status-badge ${badgeClass}">${badgeText}</span>
@@ -1994,7 +2036,9 @@ function renderTable() {
       else statusBadge = `<span class="status-badge badge-free">Upcoming</span>`;
     }
     const overnightTag = isOvernight(b) ? ' <span style="font-size:10px;color:var(--text-faint);font-weight:600">+1 day</span>' : '';
-    html += `<tr>
+    const ts = b.status === 'Pending' ? 'pending' : b.status === 'Rejected' || b.status === 'Cancelled' ? 'inactive' : bookingTimeStatus(b);
+    const rowStyle = ts === 'past' || ts === 'inactive' ? 'opacity:0.5;' : ts === 'active' ? 'background:var(--ok-light);' : '';
+    html += `<tr style="${rowStyle}">
       <td class="cb-cell"><input type="checkbox" class="booking-cb row-cb" data-id="${b.id}" onchange="onRowCbChange()" title="Select"></td>
       <td class="td-room">${escHtml(roomName(b.room))}</td>
       <td>${escHtml(b.booker)}</td>
@@ -2516,22 +2560,54 @@ async function submitRequest() {
     errEl.classList.add('visible'); return;
   }
 
-  // Conflict check — warn requester but still allow submission
-  // Admin sees the conflict note when reviewing
-  const conflictWarnings = [];
+  // Conflict check: hard block on Confirmed, soft warn on Pending only
+  const confirmedConflicts = [];
+  const pendingConflicts = [];
   for (const d of dates) {
     const conflict = findConflict(room, d, start, end, null);
-    if (conflict) conflictWarnings.push({ date: d, conflict });
+    if (conflict) {
+      if (conflict.status === 'Confirmed' || !conflict.status) confirmedConflicts.push({ date: d, conflict });
+      else if (conflict.status === 'Pending') pendingConflicts.push({ date: d, conflict });
+    }
   }
 
-  // If conflicts found, append a note to purpose so admin sees it in pending list
+  // Hard block: room already confirmed for this slot
+  if (confirmedConflicts.length > 0) {
+    const first = confirmedConflicts[0];
+    const freeAlts = getFreeRoomsForDate(first.date, start, end, room);
+    let msg = `${roomName(room)} is confirmed for ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker} on ${fmtDate(first.date)}.`;
+    errEl.innerHTML = msg;
+    if (freeAlts.length > 0) {
+      errEl.innerHTML += ` <span style="display:block;margin-top:8px;font-weight:600;">Free rooms:</span>`;
+      const btnWrap = document.createElement('div');
+      btnWrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;';
+      freeAlts.forEach(r => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = r.name;
+        btn.style.cssText = 'padding:5px 12px;border:1.5px solid var(--accent);border-radius:var(--radius);background:var(--accent-light);color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;';
+        btn.onclick = () => {
+          document.getElementById('req-room').value = r.id;
+          errEl.classList.remove('visible');
+          errEl.innerHTML = '';
+        };
+        btnWrap.appendChild(btn);
+      });
+      errEl.appendChild(btnWrap);
+    } else {
+      errEl.innerHTML += ' No other rooms are free at this time.';
+    }
+    errEl.classList.add('visible');
+    reqSubmitting = false;
+    return;
+  }
+
+  // Soft warn: pending conflict — allow but flag
   let finalPurpose = purpose;
-  let hasConflict = conflictWarnings.length > 0;
+  const hasConflict = pendingConflicts.length > 0;
   if (hasConflict) {
-    const first = conflictWarnings[0];
-    const isPending = first.conflict.status === 'Pending';
-    const statusLabel = isPending ? 'a pending request' : 'a confirmed booking';
-    finalPurpose = purpose + ` [⚠️ Overlap: ${roomName(room)} has ${statusLabel} ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker} on ${fmtDate(first.date)}]`;
+    const first = pendingConflicts[0];
+    finalPurpose = purpose + ` [⚠️ Overlap: ${roomName(room)} has a pending request ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker} on ${fmtDate(first.date)}]`;
   }
 
   try {
@@ -2550,11 +2626,9 @@ async function submitRequest() {
     // Show conflict notice on confirmation screen if overlaps detected
     const noticeEl = document.getElementById('req-conflict-notice');
     if (hasConflict && noticeEl) {
-      const first = conflictWarnings[0];
-      const isPending = first.conflict.status === 'Pending';
-      const statusLabel = isPending ? 'a pending request' : 'a confirmed booking';
+      const first = pendingConflicts[0];
       noticeEl.style.display = '';
-      noticeEl.innerHTML = `⚠️ <strong>Note:</strong> ${roomName(room)} already has ${statusLabel} from ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} on ${fmtDate(first.date)} by ${first.conflict.booker}. Your request has been submitted — please check with the admin for confirmation.`;
+      noticeEl.innerHTML = `⚠️ <strong>Note:</strong> ${roomName(room)} has a pending (unconfirmed) request from ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} on ${fmtDate(first.date)} by ${first.conflict.booker}. Your request has been submitted — admin will review both.`;
     } else if (noticeEl) {
       noticeEl.style.display = 'none';
     }
@@ -2590,13 +2664,22 @@ function renderPendingRequests() {
   section.style.display = '';
   updatePendingDot();
 
-  list.innerHTML = pending.sort((a,b) => (a.date+a.start) < (b.date+b.start) ? -1 : 1).map(b => `
-    <div class="pending-item" id="pending-item-${b.id}">
+  const now = Date.now();
+  const todayStr2 = todayStr();
+  const nowMins = nowMinutes();
+
+  list.innerHTML = pending.sort((a,b) => (a.date+a.start) < (b.date+b.start) ? -1 : 1).map(b => {
+    // Urgent: booking is today and starts within 2 hours
+    const isUrgent = b.date === todayStr2 && parseTimeToMins(b.start) - nowMins <= 120 && parseTimeToMins(b.start) >= nowMins;
+    const urgentStyle = isUrgent ? 'border-left:3px solid var(--danger);background:var(--danger-light);' : '';
+    const urgentTag = isUrgent ? `<span style="font-size:10px;background:var(--danger);color:white;padding:2px 6px;border-radius:999px;font-weight:700;margin-left:6px;">URGENT</span>` : '';
+    return `
+    <div class="pending-item" id="pending-item-${b.id}" style="${urgentStyle}">
       <div class="pending-item-top">
         <div style="display:flex;align-items:flex-start;gap:10px;">
           <input type="checkbox" class="booking-cb pending-cb" data-id="${b.id}" onchange="onPendingCbChange()" style="margin-top:3px;accent-color:var(--warn);width:15px;height:15px;cursor:pointer;flex-shrink:0;">
           <div>
-            <div class="pending-room-name">${escHtml(roomName(b.room))}</div>
+            <div class="pending-room-name">${escHtml(roomName(b.room))}${urgentTag}</div>
             <div class="pending-meta">${escHtml(b.booker)}${b.purpose ? ' &middot; ' + escHtml(b.purpose) : ''}</div>
             <div class="pending-meta">${fmtDate(b.date)} &middot; ${fmtTime(b.start)} – ${fmtTime(b.end)}${b.attendees ? ' &middot; ' + b.attendees + ' attendees' : ''}</div>
           </div>
@@ -2622,7 +2705,7 @@ function renderPendingRequests() {
         </div>
       </div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 function toggleModifyForm(id) {
@@ -2637,7 +2720,7 @@ async function approvePending(id) {
   // Check conflict against all confirmed bookings (excluding self)
   const conflict = findConflict(b.room, b.date, b.start, b.end, id);
   if (conflict) {
-    if (!confirm(`⚠️ Conflict: ${roomName(b.room)} is already booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker} on ${fmtDate(conflict.date || b.date)}.\n\nApprove anyway?`)) return;
+    if (!confirm(`⚠️ Conflict: ${roomName(b.room)} is already booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker} on ${fmtDate(b.date)}.\n\nApprove anyway?`)) return;
   }
   try {
     showLoadingOverlay(true);
@@ -2931,7 +3014,6 @@ window.addEventListener('beforeunload', e => {
 
 function closeRejectModal() { document.getElementById('reject-modal').style.display = 'none'; rejectTargetId = null; }
 function closeDeleteModal() { document.getElementById('delete-modal').style.display = 'none'; deleteTargetId = null; }
-function closeConflictModal() { document.getElementById('conflict-modal').style.display = 'none'; }
 
 // Escape key closes topmost open modal
 document.addEventListener('keydown', e => {
@@ -3006,7 +3088,7 @@ function openSchedModal(roomId) {
 
     let dayHtml = '';
     if (dayBookings.length === 0) {
-      dayHtml = '<div class="sched-no-bookings">No bookings</div>';
+      dayHtml = `<div class="sched-no-bookings">No bookings &mdash; <a href="javascript:void(0)" onclick="closeSchedModal();openRequestModal('${roomId}');" style="color:var(--accent);font-weight:600;text-decoration:none;">Request this room</a></div>`;
     } else {
       for (const { b, span } of dayBookings) {
         const isPast = ds < todayStr() || (ds === todayStr() && span.end <= nowMinutes());
