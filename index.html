@@ -6,7 +6,6 @@
 <title>Room Booking — Knowledge Centre</title>
 
 <meta name="theme-color" content="#1a3a6b">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://fonts.googleapis.com https://fonts.gstatic.com https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:;">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="IMS Rooms">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,11 +13,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
-    --bg: #F7F3FF;
-    --surface: rgba(255,255,255,0.85);
-    --surface2: #EDE8F8;
-    --border: #D4C8F0;
-    --border-light: #E8E2F8;
+    --bg: #F0EEFF;
+    --surface: #FDFCFF;
+    --surface2: #E8E4F8;
+    --border: #D0C8F0;
+    --border-light: #E4E0F8;
     --text: #1E1B2E;
     --text-muted: #5C5478;
     --text-faint: #8B83A8;
@@ -31,23 +30,19 @@
     --warn-light: #FFF3E0;
     --ok: #2E7D52;
     --ok-light: #E6F4EC;
-    --floor2: #4A90D9;
-    --floor4: #9B59B6;
     --font-display: 'Syne', sans-serif;
     --font-body: 'DM Sans', sans-serif;
     --radius: 12px;
     --radius-lg: 20px;
-    --shadow: 0 2px 8px rgba(91,79,207,0.08), 0 1px 3px rgba(0,0,0,0.04);
-    --shadow-lg: 0 8px 32px rgba(91,79,207,0.12), 0 2px 8px rgba(0,0,0,0.06);
+    --shadow: 0 2px 12px rgba(91,79,207,0.10);
+    --shadow-lg: 0 8px 32px rgba(91,79,207,0.16);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     font-family: var(--font-body);
-    background-color: var(--bg);
-    background-image: radial-gradient(circle, rgba(91,79,207,0.08) 1px, transparent 1px);
-    background-size: 28px 28px;
+    background: linear-gradient(135deg, #EDE8FF 0%, #F0EEFF 35%, #E8F4F0 65%, #FFF0F5 100%) fixed;
     color: var(--text);
     min-height: 100vh;
     font-size: 15px;
@@ -55,10 +50,8 @@
 
   /* NAV */
   nav {
-    background: rgba(247,243,255,0.80);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border-bottom: 1px solid rgba(212,200,240,0.6);
+    background: linear-gradient(90deg, #EDE8FF 0%, #F8F6FF 100%);
+    border-bottom: 2px solid rgba(91,79,207,0.15);
     padding: 0 2rem;
     display: flex;
     align-items: center;
@@ -75,15 +68,14 @@
   }
   .nav-logo {
     width: 36px; height: 36px;
-    background: linear-gradient(135deg, #7B6FDF 0%, #5B4FCF 100%);
-    border-radius: 10px;
+    background: var(--accent);
+    border-radius: 8px;
     display: flex; align-items: center; justify-content: center;
     color: white;
     font-family: var(--font-display);
     font-size: 16px;
     font-weight: 700;
     letter-spacing: -0.5px;
-    box-shadow: 0 2px 8px rgba(91,79,207,0.3);
   }
   .nav-title {
     font-family: var(--font-display);
@@ -177,26 +169,28 @@
   }
 
   .room-card {
-    background: rgba(255,255,255,0.75);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.9);
+    background: var(--room-bg, #FDFCFF);
+    border: 1.5px solid var(--room-border, #D0C8F0);
     border-radius: var(--radius-lg);
     padding: 20px;
+    padding-top: 24px;
     transition: box-shadow 0.25s, transform 0.25s;
     cursor: default;
     position: relative;
     overflow: hidden;
-    box-shadow: var(--shadow);
+    box-shadow: 0 2px 12px var(--room-shadow, rgba(91,79,207,0.10));
   }
-  .room-card::before { display: none; }
-  .room-card.free::before { display: none; }
-  .room-card.occupied::before { display: none; }
-  .room-card.ending-soon::before { display: none; }
-  .room-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
-  .room-card.occupied { border-left: none; }
-  .room-card.free { border-left: none; }
-  .room-card.ending-soon { border-left: none; }
+  .room-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: var(--room-color, var(--accent));
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  .room-card:hover { box-shadow: 0 8px 28px var(--room-shadow, rgba(91,79,207,0.18)); transform: translateY(-3px); }
+  .room-card.occupied::before { background: linear-gradient(90deg, #D64045, #E57373); }
+  .room-card.ending-soon::before { background: linear-gradient(90deg, #B06B00, #FFB74D); }
 
   .room-card-top {
     display: flex;
@@ -221,7 +215,7 @@
   .status-badge {
     padding: 4px 10px;
     border-radius: 999px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -353,7 +347,7 @@
     border-color: transparent;
     box-shadow: 0 2px 8px rgba(91,79,207,0.3);
   }
-  .btn-primary:hover { background: linear-gradient(135deg, #4A3FBF, #6B5FCF); box-shadow: 0 4px 12px rgba(91,79,207,0.4); }
+  .btn-primary:hover { background: linear-gradient(135deg, #4A3FBF, #6B5FCF); box-shadow: 0 4px 14px rgba(91,79,207,0.4); }
   .btn-danger {
     background: var(--danger-light);
     color: var(--danger);
@@ -453,15 +447,12 @@
     overflow-y: auto;
   }
   .modal-box {
-    background: rgba(255,255,255,0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid rgba(255,255,255,0.95);
+    background: var(--surface);
     border-radius: var(--radius-lg);
     padding: 2rem;
     width: 400px;
     max-width: calc(100vw - 2rem);
-    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
   }
   .modal-title {
     font-family: var(--font-display);
@@ -523,9 +514,7 @@
 
   /* SCHEDULE MODAL */
   .sched-modal-box {
-    background: rgba(255,255,255,0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: var(--surface);
     border-radius: var(--radius-lg);
     padding: 0;
     width: 680px;
@@ -637,9 +626,7 @@
 
   /* REQUEST MODAL */
   .modal-box-lg {
-    background: rgba(255,255,255,0.92);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: var(--surface);
     border-radius: var(--radius-lg);
     padding: 1.5rem;
     width: 480px;
@@ -914,10 +901,8 @@
   .timeline-legend-item { display: flex; align-items: center; gap: 4px; }
   .timeline-legend-dot { width: 8px; height: 8px; border-radius: 2px; }
   .timeline-wrap {
-    background: rgba(255,255,255,0.72);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.9);
+    background: rgba(253,252,255,0.95);
+    border: 1.5px solid rgba(91,79,207,0.12);
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow);
@@ -935,7 +920,7 @@
   /* Hour tick ruler */
   .tl-ruler {
     display: flex;
-    margin-left: 160px;
+    margin-left: 130px;
     margin-bottom: 2px;
     position: relative;
     height: 18px;
@@ -958,8 +943,8 @@
   }
   .tl-row:last-child { border-bottom: 1px solid var(--border-light); }
   .tl-room-label {
-    width: 160px;
-    min-width: 160px;
+    width: 130px;
+    min-width: 130px;
     padding: 6px 10px 6px 14px;
     font-size: 11px;
     font-weight: 600;
@@ -1016,8 +1001,8 @@
     z-index: 2;
     min-width: 2px;
   }
-  .tl-booking-block.confirmed { background: #E57373; }
-  .tl-booking-block.ending-soon { background: #FFB74D; }
+  .tl-booking-block.confirmed { background: #C0392B; }
+  .tl-booking-block.ending-soon { background: #C07D00; }
   .tl-booking-label {
     font-size: 10px;
     font-weight: 600;
@@ -1321,7 +1306,7 @@
 </div>
 
 <!-- LOGIN MODAL -->
-<div class="modal-overlay" id="login-modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Admin Login">
+<div class="modal-overlay" id="login-modal" style="display:none;">
   <div class="modal-box">
     <div class="modal-title">Admin Access</div>
     <div class="modal-sub">Enter the admin password to continue.</div>
@@ -1338,7 +1323,7 @@
 </div>
 
 <!-- REQUEST BOOKING MODAL -->
-<div class="modal-overlay" id="request-modal" style="display:none;" onclick="if(event.target===this&&!reqSubmitting)closeRequestModal()" role="dialog" aria-modal="true" aria-label="Request a Booking">
+<div class="modal-overlay" id="request-modal" style="display:none;" onclick="if(event.target===this&&!reqSubmitting)closeRequestModal()">
   <div class="modal-box-lg">
     <div id="req-form-view">
       <div class="modal-title">Request a Booking</div>
@@ -1409,7 +1394,7 @@
 </div>
 
 <!-- REJECT MODAL -->
-<div class="modal-overlay" id="reject-modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Reject Request">
+<div class="modal-overlay" id="reject-modal" style="display:none;">
   <div class="modal-box">
     <div class="modal-title">Reject Request?</div>
     <div class="modal-sub" id="reject-modal-sub">This request will be removed from pending.</div>
@@ -1425,7 +1410,7 @@
 </div>
 
 <!-- DELETE CONFIRM MODAL -->
-<div class="modal-overlay" id="delete-modal" style="display:none;" role="dialog" aria-modal="true" aria-label="Delete Booking">
+<div class="modal-overlay" id="delete-modal" style="display:none;">
   <div class="modal-box">
     <div class="modal-title">Delete Booking?</div>
     <div class="modal-sub" id="delete-modal-sub">This cannot be undone.</div>
@@ -1437,7 +1422,7 @@
 </div>
 
 <!-- TOAST CONTAINER -->
-<div class="toast-container" id="toast-container" aria-live="polite" aria-atomic="false"></div>
+<div class="toast-container" id="toast-container"></div>
 
 <!-- TIMELINE TOOLTIP -->
 <div class="tl-tooltip" id="tl-tooltip">
@@ -1450,16 +1435,16 @@
 <script>
 // ===== CONFIGURATION =====
 const ROOMS = [
-  { id: 'brihaspati',  name: 'Brihaspati',              floor: '2nd Floor', color: '#7B6FDF' }, // lavender
-  { id: 'vedvyas',     name: 'Vedvyas',                  floor: '2nd Floor', color: '#4CAF7D' }, // sage
-  { id: 'conf2f',      name: '2nd Floor Conference Room',floor: '2nd Floor', color: '#4A90D9' }, // sky blue
-  { id: 'parashurama', name: 'Parashurama',              floor: '4th Floor', color: '#E07B54' }, // terracotta
-  { id: 'pingala',     name: 'Pingala',                  floor: '4th Floor', color: '#D4A017' }, // amber
-  { id: 'chanakya',    name: 'Chanakya',                 floor: '4th Floor', color: '#9B59B6' }, // violet
-  { id: 'bhardwaja',   name: 'Bhardwaja',                floor: '4th Floor', color: '#2BBCB0' }, // teal
-  { id: 'vishwamitra', name: 'Vishwamitra',              floor: '2nd Floor', color: '#E87A8F' }, // rose
-  { id: 'vasistha',    name: 'Vasistha',                 floor: '2nd Floor', color: '#5BA4CF' }, // cerulean
-  { id: 'sharada',     name: 'Sharada',                  floor: '2nd Floor', color: '#8BC34A' }, // lime green
+  { id: 'brihaspati',  name: 'Brihaspati',               floor: '2nd Floor', color: '#7B6FDF', colorLight: '#F0EEFF' },
+  { id: 'vedvyas',     name: 'Vedvyas',                   floor: '2nd Floor', color: '#2E9E6B', colorLight: '#E6F7EF' },
+  { id: 'conf2f',      name: '2nd Floor Conference Room', floor: '2nd Floor', color: '#3A8FC7', colorLight: '#E6F3FB' },
+  { id: 'parashurama', name: 'Parashurama',               floor: '4th Floor', color: '#D4631A', colorLight: '#FDF0E8' },
+  { id: 'pingala',     name: 'Pingala',                   floor: '4th Floor', color: '#B8860B', colorLight: '#FDF6E3' },
+  { id: 'chanakya',    name: 'Chanakya',                  floor: '4th Floor', color: '#8E44AD', colorLight: '#F5EEF8' },
+  { id: 'bhardwaja',   name: 'Bhardwaja',                 floor: '4th Floor', color: '#1A9B94', colorLight: '#E6F7F6' },
+  { id: 'vishwamitra', name: 'Vishwamitra',               floor: '2nd Floor', color: '#C0395A', colorLight: '#FDEEF2' },
+  { id: 'vasistha',    name: 'Vasistha',                  floor: '2nd Floor', color: '#2471A3', colorLight: '#E8F4FB' },
+  { id: 'sharada',     name: 'Sharada',                   floor: '2nd Floor', color: '#5D8A27', colorLight: '#EDF5E2' },
 ];
 
 // ===== STATE =====
@@ -1501,12 +1486,13 @@ const PAGE_SIZE = 15; // bookings per page in admin table
 const API_URL = 'https://script.google.com/macros/s/AKfycbwJ7bjmHxDeNiYquBd7TX_kMLZSSwPyK88dZbUZhg0-3h1AjJxYBA4SrP_kbqSzjVJA0g/exec';
 
 async function loadData(silent = false) {
+  // Don't overwrite local state with stale sheet data right after a write.
+  // Sheet takes 2-4s to commit; block silent refreshes for 10s after any write.
   if (silent && _writeRecentlyCompleted()) return;
   try {
     if (!silent) showLoadingOverlay(true);
     const res = await fetch(API_URL);
-    const json = await res.json();
-    const data = Array.isArray(json) ? json : (json.data || []);
+    const data = await res.json();
     bookings = data.map(r => {
 
       // Clean time: handle all Google Sheets time formats
@@ -1876,7 +1862,6 @@ function renderStatusGrid() {
       badgeClass = 'badge-occupied'; badgeText = 'In Use'; cardClass = 'occupied'; barClass = '';
     }
 
-    const roomColor = room.color || 'var(--accent)';
     let bodyHtml = '';
     if (booking) {
       const mins = remaining;
@@ -1899,13 +1884,10 @@ function renderStatusGrid() {
       bodyHtml += `<div class="room-time-bar"><div class="room-time-fill ${barClass}" style="width:${pct}%"></div></div>`;
       bodyHtml += `<div class="room-time-label">${fmtTime(booking.start)} – ${fmtTime(booking.end)}</div>`;
     } else {
-      // Show "Free until next booking" or "Free all day"
       const nextToday = nextBookings[0];
-      const freeUntilText = nextToday
-        ? `Free until <strong>${fmtTime(nextToday.start)}</strong>`
-        : 'Free all day';
-      bodyHtml += `<div class="room-info-row" style="color:${roomColor}">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+      const freeUntilText = nextToday ? `Free until ${fmtTime(nextToday.start)}` : 'Free all day';
+      bodyHtml += `<div class="room-info-row" style="color:${roomColor};font-weight:600;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         <span>${freeUntilText}</span>
       </div>`;
       bodyHtml += `<div class="room-time-bar"><div class="room-time-fill free" style="width:0%"></div></div>`;
@@ -1920,17 +1902,14 @@ function renderStatusGrid() {
       </div>`;
     }
 
+    const roomColor = room.color || '#5B4FCF';
+    const roomLight = room.colorLight || '#EDE8FF';
+    const roomBorder = roomColor + '30';
+    const roomShadow = roomColor + '18';
     const pendingForRoom = bookings.filter(b => b.room === room.id && b.status === 'Pending').length;
-    const pendingTag = pendingForRoom > 0
-      ? `<span style="font-size:11px;background:var(--warn-light);color:var(--warn);padding:2px 7px;border-radius:999px;font-weight:600;margin-left:6px;">${pendingForRoom} pending</span>`
-      : '';
-    const topStrip = status === 'free'
-      ? `background:linear-gradient(90deg,${roomColor},${roomColor}CC)`
-      : status === 'occupied'
-        ? 'background:linear-gradient(90deg,#E57373,#D64045)'
-        : 'background:linear-gradient(90deg,#FFB74D,#FF9800)';
-    html += `<div class="room-card ${cardClass}" data-floor="${escHtml(room.floor)}" style="--room-color:${roomColor}">
-      <div style="position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius-lg) var(--radius-lg) 0 0;${topStrip}"></div>
+    const pendingTag = pendingForRoom > 0 ? `<span style="font-size:11px;background:var(--warn-light);color:var(--warn);padding:2px 7px;border-radius:999px;font-weight:600;margin-left:6px;">${pendingForRoom} pending</span>` : '';
+
+    html += `<div class="room-card ${cardClass}" style="--room-color:${roomColor};--room-bg:${roomLight};--room-border:${roomBorder};--room-shadow:${roomShadow};">
       <div class="room-card-top" onclick="openSchedModal('${room.id}')" title="Click to view 30-day schedule" style="cursor:pointer">
         <div>
           <div class="room-name">${escHtml(room.name)}${pendingTag}</div>
@@ -2036,9 +2015,7 @@ function renderTable() {
       else statusBadge = `<span class="status-badge badge-free">Upcoming</span>`;
     }
     const overnightTag = isOvernight(b) ? ' <span style="font-size:10px;color:var(--text-faint);font-weight:600">+1 day</span>' : '';
-    const ts = b.status === 'Pending' ? 'pending' : b.status === 'Rejected' || b.status === 'Cancelled' ? 'inactive' : bookingTimeStatus(b);
-    const rowStyle = ts === 'past' || ts === 'inactive' ? 'opacity:0.5;' : ts === 'active' ? 'background:var(--ok-light);' : '';
-    html += `<tr style="${rowStyle}">
+    html += `<tr>
       <td class="cb-cell"><input type="checkbox" class="booking-cb row-cb" data-id="${b.id}" onchange="onRowCbChange()" title="Select"></td>
       <td class="td-room">${escHtml(roomName(b.room))}</td>
       <td>${escHtml(b.booker)}</td>
@@ -2560,54 +2537,22 @@ async function submitRequest() {
     errEl.classList.add('visible'); return;
   }
 
-  // Conflict check: hard block on Confirmed, soft warn on Pending only
-  const confirmedConflicts = [];
-  const pendingConflicts = [];
+  // Conflict check — warn requester but still allow submission
+  // Admin sees the conflict note when reviewing
+  const conflictWarnings = [];
   for (const d of dates) {
     const conflict = findConflict(room, d, start, end, null);
-    if (conflict) {
-      if (conflict.status === 'Confirmed' || !conflict.status) confirmedConflicts.push({ date: d, conflict });
-      else if (conflict.status === 'Pending') pendingConflicts.push({ date: d, conflict });
-    }
+    if (conflict) conflictWarnings.push({ date: d, conflict });
   }
 
-  // Hard block: room already confirmed for this slot
-  if (confirmedConflicts.length > 0) {
-    const first = confirmedConflicts[0];
-    const freeAlts = getFreeRoomsForDate(first.date, start, end, room);
-    let msg = `${roomName(room)} is confirmed for ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker} on ${fmtDate(first.date)}.`;
-    errEl.innerHTML = msg;
-    if (freeAlts.length > 0) {
-      errEl.innerHTML += ` <span style="display:block;margin-top:8px;font-weight:600;">Free rooms:</span>`;
-      const btnWrap = document.createElement('div');
-      btnWrap.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;';
-      freeAlts.forEach(r => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.textContent = r.name;
-        btn.style.cssText = 'padding:5px 12px;border:1.5px solid var(--accent);border-radius:var(--radius);background:var(--accent-light);color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;';
-        btn.onclick = () => {
-          document.getElementById('req-room').value = r.id;
-          errEl.classList.remove('visible');
-          errEl.innerHTML = '';
-        };
-        btnWrap.appendChild(btn);
-      });
-      errEl.appendChild(btnWrap);
-    } else {
-      errEl.innerHTML += ' No other rooms are free at this time.';
-    }
-    errEl.classList.add('visible');
-    reqSubmitting = false;
-    return;
-  }
-
-  // Soft warn: pending conflict — allow but flag
+  // If conflicts found, append a note to purpose so admin sees it in pending list
   let finalPurpose = purpose;
-  const hasConflict = pendingConflicts.length > 0;
+  let hasConflict = conflictWarnings.length > 0;
   if (hasConflict) {
-    const first = pendingConflicts[0];
-    finalPurpose = purpose + ` [⚠️ Overlap: ${roomName(room)} has a pending request ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker} on ${fmtDate(first.date)}]`;
+    const first = conflictWarnings[0];
+    const isPending = first.conflict.status === 'Pending';
+    const statusLabel = isPending ? 'a pending request' : 'a confirmed booking';
+    finalPurpose = purpose + ` [⚠️ Overlap: ${roomName(room)} has ${statusLabel} ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker} on ${fmtDate(first.date)}]`;
   }
 
   try {
@@ -2626,9 +2571,11 @@ async function submitRequest() {
     // Show conflict notice on confirmation screen if overlaps detected
     const noticeEl = document.getElementById('req-conflict-notice');
     if (hasConflict && noticeEl) {
-      const first = pendingConflicts[0];
+      const first = conflictWarnings[0];
+      const isPending = first.conflict.status === 'Pending';
+      const statusLabel = isPending ? 'a pending request' : 'a confirmed booking';
       noticeEl.style.display = '';
-      noticeEl.innerHTML = `⚠️ <strong>Note:</strong> ${roomName(room)} has a pending (unconfirmed) request from ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} on ${fmtDate(first.date)} by ${first.conflict.booker}. Your request has been submitted — admin will review both.`;
+      noticeEl.innerHTML = `⚠️ <strong>Note:</strong> ${roomName(room)} already has ${statusLabel} from ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} on ${fmtDate(first.date)} by ${first.conflict.booker}. Your request has been submitted — please check with the admin for confirmation.`;
     } else if (noticeEl) {
       noticeEl.style.display = 'none';
     }
@@ -2664,22 +2611,13 @@ function renderPendingRequests() {
   section.style.display = '';
   updatePendingDot();
 
-  const now = Date.now();
-  const todayStr2 = todayStr();
-  const nowMins = nowMinutes();
-
-  list.innerHTML = pending.sort((a,b) => (a.date+a.start) < (b.date+b.start) ? -1 : 1).map(b => {
-    // Urgent: booking is today and starts within 2 hours
-    const isUrgent = b.date === todayStr2 && parseTimeToMins(b.start) - nowMins <= 120 && parseTimeToMins(b.start) >= nowMins;
-    const urgentStyle = isUrgent ? 'border-left:3px solid var(--danger);background:var(--danger-light);' : '';
-    const urgentTag = isUrgent ? `<span style="font-size:10px;background:var(--danger);color:white;padding:2px 6px;border-radius:999px;font-weight:700;margin-left:6px;">URGENT</span>` : '';
-    return `
-    <div class="pending-item" id="pending-item-${b.id}" style="${urgentStyle}">
+  list.innerHTML = pending.sort((a,b) => (a.date+a.start) < (b.date+b.start) ? -1 : 1).map(b => `
+    <div class="pending-item" id="pending-item-${b.id}">
       <div class="pending-item-top">
         <div style="display:flex;align-items:flex-start;gap:10px;">
           <input type="checkbox" class="booking-cb pending-cb" data-id="${b.id}" onchange="onPendingCbChange()" style="margin-top:3px;accent-color:var(--warn);width:15px;height:15px;cursor:pointer;flex-shrink:0;">
           <div>
-            <div class="pending-room-name">${escHtml(roomName(b.room))}${urgentTag}</div>
+            <div class="pending-room-name">${escHtml(roomName(b.room))}</div>
             <div class="pending-meta">${escHtml(b.booker)}${b.purpose ? ' &middot; ' + escHtml(b.purpose) : ''}</div>
             <div class="pending-meta">${fmtDate(b.date)} &middot; ${fmtTime(b.start)} – ${fmtTime(b.end)}${b.attendees ? ' &middot; ' + b.attendees + ' attendees' : ''}</div>
           </div>
@@ -2691,6 +2629,9 @@ function renderPendingRequests() {
         <button class="btn btn-sm btn-reject" onclick="openRejectModal('${b.id}')">❌ Reject</button>
       </div>
       <div class="modify-form" id="modify-form-${b.id}">
+        <div class="form-row">
+          <div class="form-group" style="grid-column:1/-1"><label>Room</label><select id="mod-room-${b.id}">${ROOMS.map(r => `<option value="${r.id}" ${r.id === b.room ? 'selected' : ''}>${r.name}</option>`).join('')}</select></div>
+        </div>
         <div class="form-row">
           <div class="form-group"><label>Date</label><input type="date" id="mod-date-${b.id}" value="${b.date}"></div>
           <div class="form-group"><label>Attendees</label><input type="number" id="mod-att-${b.id}" value="${b.attendees||''}" min="1" max="200" placeholder="—"></div>
@@ -2705,7 +2646,7 @@ function renderPendingRequests() {
         </div>
       </div>
     </div>
-  `}).join('');
+  `).join('');
 }
 
 function toggleModifyForm(id) {
@@ -2720,7 +2661,7 @@ async function approvePending(id) {
   // Check conflict against all confirmed bookings (excluding self)
   const conflict = findConflict(b.room, b.date, b.start, b.end, id);
   if (conflict) {
-    if (!confirm(`⚠️ Conflict: ${roomName(b.room)} is already booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker} on ${fmtDate(b.date)}.\n\nApprove anyway?`)) return;
+    if (!confirm(`⚠️ Conflict: ${roomName(b.room)} is already booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker} on ${fmtDate(conflict.date || b.date)}.\n\nApprove anyway?`)) return;
   }
   try {
     showLoadingOverlay(true);
@@ -2735,13 +2676,16 @@ async function approvePending(id) {
 async function modifyAndApprove(id) {
   const idx = bookings.findIndex(b => b.id === id);
   if (idx === -1) return;
+  const room = document.getElementById('mod-room-' + id)?.value || bookings[idx].room;
   const date = document.getElementById('mod-date-' + id).value;
   const start = document.getElementById('mod-start-' + id).value;
   const end = document.getElementById('mod-end-' + id).value;
   const attendees = document.getElementById('mod-att-' + id).value;
   if (!date || !start || !end) { toast('Please fill in all fields.', true); return; }
   if (minutesSinceMidnight(end) === minutesSinceMidnight(start)) { toast('Start and end time cannot be the same.', true); return; }
-  const b = { ...bookings[idx], date, start, end, attendees: attendees||'', status: 'Confirmed' };
+  const conflict = findConflict(room, date, start, end, id);
+  if (conflict) { if (!confirm(`⚠️ Conflict: ${roomName(room)} is booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.\n\nApprove anyway?`)) return; }
+  const b = { ...bookings[idx], room, date, start, end, attendees: attendees||'', status: 'Confirmed' };
   try {
     showLoadingOverlay(true);
     bookings[idx] = b;
@@ -3012,29 +2956,6 @@ window.addEventListener('beforeunload', e => {
   }
 });
 
-function closeRejectModal() { document.getElementById('reject-modal').style.display = 'none'; rejectTargetId = null; }
-function closeDeleteModal() { document.getElementById('delete-modal').style.display = 'none'; deleteTargetId = null; }
-
-// Escape key closes topmost open modal
-document.addEventListener('keydown', e => {
-  if (e.key !== 'Escape') return;
-  const modals = ['cancel-modal','conflict-modal','sched-modal','reject-modal','delete-modal'];
-  for (const id of modals) {
-    const el = document.getElementById(id);
-    if (el && el.style.display !== 'none') {
-      if (id === 'cancel-modal') closeCancelModal();
-      else if (id === 'conflict-modal') closeConflictModal();
-      else if (id === 'sched-modal') closeSchedModal();
-      else if (id === 'reject-modal') closeRejectModal();
-      else if (id === 'delete-modal') closeDeleteModal();
-      return;
-    }
-  }
-  // Request modal - only if not submitting
-  const reqModal = document.getElementById('request-modal');
-  if (reqModal && reqModal.style.display !== 'none' && !reqSubmitting) closeRequestModal();
-});
-
 // ===== INIT =====
 async function init() {
   populateRoomSelects();
@@ -3088,7 +3009,7 @@ function openSchedModal(roomId) {
 
     let dayHtml = '';
     if (dayBookings.length === 0) {
-      dayHtml = `<div class="sched-no-bookings">No bookings &mdash; <a href="javascript:void(0)" onclick="closeSchedModal();openRequestModal('${roomId}');" style="color:var(--accent);font-weight:600;text-decoration:none;">Request this room</a></div>`;
+      dayHtml = '<div class="sched-free-all">Fully available all day</div>';
     } else {
       for (const { b, span } of dayBookings) {
         const isPast = ds < todayStr() || (ds === todayStr() && span.end <= nowMinutes());
@@ -3447,7 +3368,7 @@ function renderTimeline() {
   }
 
   container.innerHTML = `
-    <div style="position:relative;margin-left:160px;margin-right:14px;height:18px;margin-bottom:2px;">
+    <div style="position:relative;margin-left:130px;margin-right:14px;height:18px;margin-bottom:2px;">
       ${tickLabels}
     </div>
     ${rowsHtml}
