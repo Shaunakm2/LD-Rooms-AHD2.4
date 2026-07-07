@@ -1862,6 +1862,11 @@ function renderStatusGrid() {
       badgeClass = 'badge-occupied'; badgeText = 'In Use'; cardClass = 'occupied'; barClass = '';
     }
 
+    const roomColor = room.color || '#5B4FCF';
+    const roomLight = room.colorLight || '#EDE8FF';
+    const roomBorder = roomColor + '30';
+    const roomShadow = roomColor + '18';
+
     let bodyHtml = '';
     if (booking) {
       const mins = remaining;
@@ -1902,10 +1907,6 @@ function renderStatusGrid() {
       </div>`;
     }
 
-    const roomColor = room.color || '#5B4FCF';
-    const roomLight = room.colorLight || '#EDE8FF';
-    const roomBorder = roomColor + '30';
-    const roomShadow = roomColor + '18';
     const pendingForRoom = bookings.filter(b => b.room === room.id && b.status === 'Pending').length;
     const pendingTag = pendingForRoom > 0 ? `<span style="font-size:11px;background:var(--warn-light);color:var(--warn);padding:2px 7px;border-radius:999px;font-weight:600;margin-left:6px;">${pendingForRoom} pending</span>` : '';
 
