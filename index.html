@@ -13,14 +13,14 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
-    --bg: #F0EEFF;
-    --surface: #FDFCFF;
-    --surface2: #E8E4F8;
-    --border: #D0C8F0;
-    --border-light: #E4E0F8;
-    --text: #1E1B2E;
-    --text-muted: #5C5478;
-    --text-faint: #8B83A8;
+    --bg: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface2: #F5F5F5;
+    --border: #E0E0E0;
+    --border-light: #EEEEEE;
+    --text: #1A1A1A;
+    --text-muted: #666666;
+    --text-faint: #999999;
     --accent: #5B4FCF;
     --accent-light: #EDE8FF;
     --accent-mid: #7B6FDF;
@@ -34,15 +34,15 @@
     --font-body: 'DM Sans', sans-serif;
     --radius: 12px;
     --radius-lg: 20px;
-    --shadow: 0 2px 12px rgba(91,79,207,0.10);
-    --shadow-lg: 0 8px 32px rgba(91,79,207,0.16);
+    --shadow: 0 1px 4px rgba(0,0,0,0.08);
+    --shadow-lg: 0 4px 20px rgba(0,0,0,0.12);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     font-family: var(--font-body);
-    background: #ffffff;
+    background: linear-gradient(135deg, #EDE8FF 0%, #F0EEFF 35%, #E8F4F0 65%, #FFF0F5 100%) fixed;
     color: var(--text);
     min-height: 100vh;
     font-size: 15px;
@@ -50,7 +50,7 @@
 
   /* NAV */
   nav {
-    background: linear-gradient(90deg, #EDE8FF 0%, #F8F6FF 100%);
+    background: #FFFFFF;
     border-bottom: 2px solid rgba(91,79,207,0.15);
     padding: 0 2rem;
     display: flex;
@@ -902,7 +902,7 @@
   .timeline-legend-dot { width: 8px; height: 8px; border-radius: 2px; }
   .timeline-wrap {
     background: rgba(253,252,255,0.95);
-    border: 1.5px solid rgba(91,79,207,0.12);
+    border: 1px solid #E0E0E0;
     border-radius: var(--radius-lg);
     overflow: hidden;
     box-shadow: var(--shadow);
@@ -1435,16 +1435,16 @@
 <script>
 // ===== CONFIGURATION =====
 const ROOMS = [
-  { id: 'brihaspati',  name: 'Brihaspati',               floor: '2nd Floor', color: '#7B6FDF', colorLight: '#F0EEFF' },
-  { id: 'vedvyas',     name: 'Vedvyas',                   floor: '2nd Floor', color: '#2E9E6B', colorLight: '#E6F7EF' },
-  { id: 'conf2f',      name: '2nd Floor Conference Room', floor: '2nd Floor', color: '#3A8FC7', colorLight: '#E6F3FB' },
-  { id: 'parashurama', name: 'Parashurama',               floor: '4th Floor', color: '#D4631A', colorLight: '#FDF0E8' },
-  { id: 'pingala',     name: 'Pingala',                   floor: '4th Floor', color: '#B8860B', colorLight: '#FDF6E3' },
-  { id: 'chanakya',    name: 'Chanakya',                  floor: '4th Floor', color: '#8E44AD', colorLight: '#F5EEF8' },
-  { id: 'bhardwaja',   name: 'Bhardwaja',                 floor: '4th Floor', color: '#1A9B94', colorLight: '#E6F7F6' },
-  { id: 'vishwamitra', name: 'Vishwamitra',               floor: '2nd Floor', color: '#C0395A', colorLight: '#FDEEF2' },
-  { id: 'vasistha',    name: 'Vasistha',                  floor: '2nd Floor', color: '#2471A3', colorLight: '#E8F4FB' },
-  { id: 'sharada',     name: 'Sharada',                   floor: '2nd Floor', color: '#5D8A27', colorLight: '#EDF5E2' },
+  { id: 'brihaspati',  name: 'Brihaspati',               floor: '2nd Floor', color: '#7B6FDF', colorLight: '#FAFAFE' },
+  { id: 'vedvyas',     name: 'Vedvyas',                   floor: '2nd Floor', color: '#2E9E6B', colorLight: '#F8FDFB' },
+  { id: 'conf2f',      name: '2nd Floor Conference Room', floor: '2nd Floor', color: '#3A8FC7', colorLight: '#F8FBFE' },
+  { id: 'parashurama', name: 'Parashurama',               floor: '4th Floor', color: '#D4631A', colorLight: '#FEFAF7' },
+  { id: 'pingala',     name: 'Pingala',                   floor: '4th Floor', color: '#B8860B', colorLight: '#FEFDF7' },
+  { id: 'chanakya',    name: 'Chanakya',                  floor: '4th Floor', color: '#8E44AD', colorLight: '#FDF9FF' },
+  { id: 'bhardwaja',   name: 'Bhardwaja',                 floor: '4th Floor', color: '#1A9B94', colorLight: '#F7FEFE' },
+  { id: 'vishwamitra', name: 'Vishwamitra',               floor: '2nd Floor', color: '#C0395A', colorLight: '#FFF8FA' },
+  { id: 'vasistha',    name: 'Vasistha',                  floor: '2nd Floor', color: '#2471A3', colorLight: '#F7FBFE' },
+  { id: 'sharada',     name: 'Sharada',                   floor: '2nd Floor', color: '#5D8A27', colorLight: '#F8FCF4' },
 ];
 
 // ===== STATE =====
@@ -1864,7 +1864,7 @@ function renderStatusGrid() {
 
     const roomColor = room.color || '#5B4FCF';
     const roomLight = room.colorLight || '#EDE8FF';
-    const roomBorder = roomColor + '30';
+    const roomBorder = roomColor + '18';
     const roomShadow = roomColor + '18';
 
     let bodyHtml = '';
@@ -2970,15 +2970,18 @@ async function init() {
   setInterval(async () => {
     await loadData(true);
     updatePendingDot();
+    // Only render the active page, skip timeline unless open
     if (document.getElementById('page-status').classList.contains('active')) {
       renderStatusGrid();
+      const tlWrap = document.getElementById('timeline-wrap');
+      if (tlWrap && tlWrap.style.display !== 'none') renderTimeline();
     }
     if (document.getElementById('page-admin').classList.contains('active')) {
       renderTable();
       renderActiveNow();
       renderPendingRequests();
     }
-  }, 30000);
+  }, 60000);
 }
 
 
