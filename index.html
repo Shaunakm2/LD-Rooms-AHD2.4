@@ -5,9 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Room Booking — Knowledge Centre</title>
 
-<meta name="theme-color" content="#1a3a6b">
+<meta name="theme-color" content="#1E4A3C">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="IMS Rooms">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="IMS L&D Rooms">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -66,24 +71,12 @@
     align-items: center;
     gap: 12px;
   }
-  .nav-logo {
-    width: 36px; height: 36px;
-    background: var(--accent);
-    border-radius: 8px;
-    display: flex; align-items: center; justify-content: center;
-    color: white;
-    font-family: var(--font-display);
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: -0.5px;
-  }
   .nav-title {
     font-family: var(--font-display);
     font-size: 17px;
     font-weight: 600;
     letter-spacing: -0.3px;
   }
-  .nav-sub { font-size: 12px; color: var(--text-muted); }
   .nav-tabs {
     display: flex;
     gap: 4px;
@@ -120,6 +113,8 @@
     #occupancy-counter { display: none !important; }
     .nav-title { font-size: 14px; }
     .nav-tab { padding: 6px 10px; font-size: 13px; }
+    .timeline-legend { display: none; }
+    .tl-tab { padding: 4px 8px; font-size: 11px; }
   }
 
   /* PAGES */
@@ -127,40 +122,6 @@
   .page.active { display: block; }
 
   /* STATUS PAGE */
-  .status-header {
-    padding: 2.5rem 2rem 1.5rem;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 12px;
-  }
-  .status-header h1 {
-    font-family: var(--font-display);
-    font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.8px;
-  }
-  .status-header p { color: var(--text-muted); font-size: 14px; margin-top: 4px; }
-  .summary-pills {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-  .pill {
-    padding: 6px 14px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 500;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .pill-ok { background: var(--ok-light); color: var(--ok); }
-  .pill-busy { background: var(--danger-light); color: var(--danger); }
-  .pill-soon { background: var(--warn-light); color: var(--warn); }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-
   .rooms-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -274,11 +235,6 @@
     gap: 0;
     min-height: calc(100vh - 64px);
   }
-  @media (max-width: 768px) {
-    .admin-layout { grid-template-columns: 1fr; }
-    .admin-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
-    .admin-main { padding: 1rem; }
-  }
   .admin-sidebar {
     background: var(--surface);
     border-right: 1px solid var(--border);
@@ -360,7 +316,6 @@
   }
   .btn-ghost:hover { background: var(--surface2); color: var(--text); }
   .btn-sm { padding: 6px 12px; font-size: 13px; }
-  .btn-full { width: 100%; }
   .form-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
   .form-error { font-size: 12px; color: var(--danger); margin-top: 4px; display: none; }
   .form-error.visible { display: block; }
@@ -487,27 +442,15 @@
   @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
 
-  /* CONFLICT INDICATOR */
-  .conflict-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    background: var(--danger-light);
-    color: var(--danger);
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-weight: 500;
-  }
-
   /* RESPONSIVE */
   @media (max-width: 768px) {
     .admin-layout { grid-template-columns: 1fr; }
     .admin-sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    .admin-main { padding: 1rem; }
     nav { padding: 0 1rem; }
-    .nav-sub { display: none; }
     .rooms-grid { padding: 0 1rem 2rem; }
-    .status-header { padding: 1.5rem 1rem 1rem; }
+    .timeline-section { padding: 0 1rem 1rem; }
+    .tl-room-label { width: 90px; min-width: 90px; font-size: 10px; padding-left: 10px; }
   }
 
 
@@ -590,12 +533,6 @@
   .sched-slot-info { flex: 1; }
   .sched-slot-booker { font-weight: 500; color: var(--text); }
   .sched-slot-purpose { color: var(--text-muted); font-size: 12px; }
-  .sched-no-bookings {
-    padding: 8px 10px;
-    font-size: 13px;
-    color: var(--text-faint);
-    font-style: italic;
-  }
   .sched-free-all {
     padding: 8px 10px;
     font-size: 13px;
@@ -807,7 +744,6 @@
 
   /* MISC */
   .divider { border: none; border-top: 1px solid var(--border-light); margin: 1.25rem 0; }
-  .text-danger { color: var(--danger); }
   .flex-gap { display: flex; gap: 8px; flex-wrap: wrap; }
   .current-bookings-list { display: flex; flex-direction: column; gap: 8px; }
   .booking-list-item {
@@ -823,17 +759,6 @@
   .booking-list-item .bli-room { font-weight: 600; font-size: 14px; }
   .booking-list-item .bli-meta { color: var(--text-muted); margin-top: 2px; }
   .booking-list-item.active-now { border-left: 3px solid var(--danger); }
-  .legend {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 0;
-    font-size: 13px;
-    color: var(--text-muted);
-    padding: 0 2rem;
-  }
-  .legend-item { display: flex; align-items: center; gap: 6px; }
-  .legend-dot { width: 10px; height: 10px; border-radius: 2px; }
   select option { font-family: var(--font-body); }
 
   @keyframes confettiFall {
@@ -867,11 +792,6 @@
     background: var(--surface);
     color: var(--text);
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  }
-
-  @media (max-width: 600px) {
-    .timeline-legend { display: none; }
-    .tl-tab { padding: 4px 8px; font-size: 11px; }
   }
 
   /* TODAY'S TIMELINE */
@@ -917,13 +837,6 @@
     padding: 0 0 8px;
   }
   /* Hour tick ruler */
-  .tl-ruler {
-    display: flex;
-    margin-left: 130px;
-    margin-bottom: 2px;
-    position: relative;
-    height: 18px;
-  }
   .tl-ruler-tick {
     flex: 1;
     font-size: 10px;
@@ -973,19 +886,6 @@
     margin: 6px 14px 6px 0;
     overflow: visible;
   }
-  /* Hour grid lines on track */
-  .tl-track-grid {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    border-radius: 4px;
-    overflow: hidden;
-  }
-  .tl-track-hour {
-    flex: 1;
-    border-right: 1px solid rgba(0,0,0,0.06);
-  }
-  .tl-track-hour:last-child { border-right: none; }
   /* Booking block on track */
   .tl-booking-block {
     position: absolute;
@@ -1036,12 +936,6 @@
     background: var(--accent);
     border-radius: 50%;
   }
-  @media (max-width: 768px) {
-    .timeline-section { padding: 0 1rem 1rem; }
-    .tl-room-label { width: 90px; min-width: 90px; font-size: 10px; padding-left: 10px; }
-    .tl-ruler { margin-left: 90px; }
-  }
-
 
   .cancel-modal-box { background:var(--surface);border-radius:var(--radius-lg);padding:1.5rem;width:420px;max-width:calc(100vw - 2rem);border:1px solid var(--border); }
   .cancel-booking-card { background:var(--bg);border-radius:var(--radius);padding:12px;margin:12px 0;font-size:13px;border:1px solid var(--border-light); }
@@ -1083,7 +977,6 @@
   .alt-btn.skip-btn { background:var(--surface2);color:var(--text-muted); }
   .alt-btn.skip-btn.selected { background:#888;color:white;border-color:#888; }
   .conflict-resolved-label { font-size:12px;color:var(--ok);font-weight:500; }
-  .conflict-free-label { font-size:12px;color:var(--text-muted); }
 
 </style>
 </head>
@@ -1580,11 +1473,9 @@ async function loadData(silent = false) {
   }
 }
 
-let _writePending = false;
 let _writeCompletedAt = 0;
 
 async function apiPost(payload) {
-  _writePending = true;
   try {
     payload._token = _sessionToken; // server validates this on every write
     await fetch(API_URL, {
@@ -1597,8 +1488,6 @@ async function apiPost(payload) {
   } catch(e) {
     console.error('apiPost failed:', e);
     throw e;
-  } finally {
-    _writePending = false;
   }
 }
 
@@ -2995,6 +2884,13 @@ async function init() {
       renderPendingRequests();
     }
   }, 60000);
+
+  // PWA install support — safe no-op in browsers without service worker support
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(err => {
+      console.error('Service worker registration failed:', err);
+    });
+  }
 }
 
 
@@ -3267,29 +3163,6 @@ async function confirmCancelBooking() {
 
 
 
-function findConflictConfirmedOnly(room, date, start, end, excludeId) {
-  const newSpans = bookingSpans({ date, start, end });
-  for (const b of bookings) {
-    if (b.room !== room) continue;
-    if (excludeId && b.id === excludeId) continue;
-    if (b.status !== 'Confirmed' && b.status !== '') continue; // only confirmed blocks
-    for (const ex of bookingSpans(b)) {
-      for (const ns of newSpans) {
-        if (ex.date === ns.date && ns.start < ex.end && ns.end > ex.start) return b;
-      }
-    }
-  }
-  return null;
-}
-function getBookingSpansLocal(b) {
-  const s = minutesSinceMidnight(b.start);
-  const e = minutesSinceMidnight(b.end);
-  if (e > s) return [{ date: b.date, start: s, end: e }];
-  const spans = [{ date: b.date, start: s, end: 1440 }];
-  if (e > 0) spans.push({ date: addDaysStr(b.date, 1), start: 0, end: e });
-  return spans;
-}
-
 function renderTimeline() {
   const container = document.getElementById('tl-bar-inner');
   if (!container) return;
@@ -3338,7 +3211,7 @@ function renderTimeline() {
     // Get spans that fall on targetDate
     let blocksHtml = '';
     for (const b of roomBookings) {
-      const spans = getBookingSpansLocal(b).filter(s => s.date === targetDate);
+      const spans = bookingSpans(b).filter(s => s.date === targetDate);
       for (const span of spans) {
         const leftPct = (span.start / DAY_MINS) * 100;
         const widthPct = ((span.end - span.start) / DAY_MINS) * 100;
