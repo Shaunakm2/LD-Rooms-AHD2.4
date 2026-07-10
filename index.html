@@ -13,28 +13,28 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root {
-    --bg: #FFFFFF;
-    --surface: #FFFFFF;
-    --surface2: #F5F5F5;
-    --border: #E0E0E0;
-    --border-light: #EEEEEE;
-    --text: #1A1A1A;
-    --text-muted: #666666;
-    --text-faint: #999999;
-    --accent: #5B4FCF;
-    --accent-light: #EDE8FF;
-    --accent-mid: #7B6FDF;
-    --danger: #D64045;
-    --danger-light: #FDECEA;
-    --warn: #B06B00;
-    --warn-light: #FFF3E0;
-    --ok: #2E7D52;
-    --ok-light: #E6F4EC;
+    --bg: #F5F2EC;
+    --surface: #FEFCF8;
+    --surface2: #EFECE4;
+    --border: #D8D4CA;
+    --border-light: #E8E4DC;
+    --text: #1A1916;
+    --text-muted: #6B6860;
+    --text-faint: #7A7870;
+    --accent: #1E4A3C;
+    --accent-light: #E2EDE9;
+    --accent-mid: #2E6B56;
+    --danger: #8B2020;
+    --danger-light: #FAEAEA;
+    --warn: #7A4A00;
+    --warn-light: #FDF3E3;
+    --ok: #1E4A3C;
+    --ok-light: #E2EDE9;
     --font-display: 'Syne', sans-serif;
     --font-body: 'DM Sans', sans-serif;
-    --radius: 12px;
-    --radius-lg: 20px;
-    --shadow: 0 1px 4px rgba(0,0,0,0.08);
+    --radius: 10px;
+    --radius-lg: 16px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
     --shadow-lg: 0 4px 20px rgba(0,0,0,0.12);
   }
 
@@ -42,7 +42,7 @@
 
   body {
     font-family: var(--font-body);
-    background: linear-gradient(135deg, #EDE8FF 0%, #F0EEFF 35%, #E8F4F0 65%, #FFF0F5 100%) fixed;
+    background: var(--bg);
     color: var(--text);
     min-height: 100vh;
     font-size: 15px;
@@ -50,8 +50,8 @@
 
   /* NAV */
   nav {
-    background: #FFFFFF;
-    border-bottom: 2px solid rgba(91,79,207,0.15);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
     padding: 0 2rem;
     display: flex;
     align-items: center;
@@ -169,16 +169,16 @@
   }
 
   .room-card {
-    background: var(--room-bg, #FDFCFF);
-    border: 1.5px solid var(--room-border, #D0C8F0);
+    background: var(--surface);
+    border: 1px solid var(--border);
     border-radius: var(--radius-lg);
     padding: 20px;
     padding-top: 24px;
-    transition: box-shadow 0.25s, transform 0.25s;
+    transition: box-shadow 0.2s, transform 0.2s;
     cursor: default;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 2px 12px var(--room-shadow, rgba(91,79,207,0.10));
+    box-shadow: var(--shadow);
   }
   .room-card::before {
     content: '';
@@ -188,7 +188,7 @@
     background: var(--room-color, var(--accent));
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
-  .room-card:hover { box-shadow: 0 8px 28px var(--room-shadow, rgba(91,79,207,0.18)); transform: translateY(-3px); }
+  .room-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: translateY(-1px); }
   .room-card.occupied::before { background: linear-gradient(90deg, #D64045, #E57373); }
   .room-card.ending-soon::before { background: linear-gradient(90deg, #B06B00, #FFB74D); }
 
@@ -342,12 +342,11 @@
     transition: all 0.15s;
   }
   .btn-primary {
-    background: linear-gradient(135deg, #5B4FCF, #7B6FDF);
+    background: var(--accent);
     color: white;
-    border-color: transparent;
-    box-shadow: 0 2px 8px rgba(91,79,207,0.3);
+    border-color: var(--accent);
   }
-  .btn-primary:hover { background: linear-gradient(135deg, #4A3FBF, #6B5FCF); box-shadow: 0 4px 14px rgba(91,79,207,0.4); }
+  .btn-primary:hover { background: var(--accent-mid); }
   .btn-danger {
     background: var(--danger-light);
     color: var(--danger);
@@ -1115,7 +1114,6 @@
 <!-- STATUS PAGE -->
 <div class="page active" id="page-status">
 
-
   <!-- TODAY'S TIMELINE -->
   <div class="timeline-section" id="timeline-section">
     <div class="timeline-header" style="cursor:pointer;user-select:none;">
@@ -1366,11 +1364,11 @@
       <div class="form-row">
         <div class="form-group">
           <label>Start Time</label>
-          <input type="time" id="req-start" required>
+          <input type="time" id="req-start" required onblur="validateReqTimes()">
         </div>
         <div class="form-group">
           <label>End Time</label>
-          <input type="time" id="req-end" required>
+          <input type="time" id="req-end" required onblur="validateReqTimes()">
         </div>
       </div>
       <div class="form-error" id="req-error"></div>
@@ -1891,7 +1889,7 @@ function renderStatusGrid() {
     } else {
       const nextToday = nextBookings[0];
       const freeUntilText = nextToday ? `Free until ${fmtTime(nextToday.start)}` : 'Free all day';
-      bodyHtml += `<div class="room-info-row" style="color:${roomColor};font-weight:600;">
+      bodyHtml += `<div class="room-info-row" style="color:var(--text);font-weight:500;">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
         <span>${freeUntilText}</span>
       </div>`;
@@ -2449,7 +2447,8 @@ function updateClock() {
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const dateStr = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()];
-  document.getElementById('clock').textContent = dateStr + '  ' + pad(hr) + ':' + pad(m) + ' ' + ap;
+  const s = now.getSeconds();
+  document.getElementById('clock').textContent = dateStr + '  ' + pad(hr) + ':' + pad(m) + ':' + pad(s) + ' ' + ap;
 }
 
 // ===== UTIL =====
@@ -2493,6 +2492,20 @@ function closeRequestModal() {
   if (recEl) recEl.checked = false;
   const wrapEl = document.getElementById('req-recurring-end-wrap');
   if (wrapEl) wrapEl.style.display = 'none';
+}
+
+function validateReqTimes() {
+  const s = document.getElementById('req-start').value;
+  const e = document.getElementById('req-end').value;
+  const errEl = document.getElementById('req-error');
+  if (!s || !e) return;
+  const sm = parseTimeToMins(s), em = parseTimeToMins(e);
+  if (sm !== null && em !== null && em === sm) {
+    errEl.textContent = 'Start and end time cannot be the same.';
+    errEl.classList.add('visible');
+  } else {
+    if (errEl.textContent.includes('cannot be the same')) errEl.classList.remove('visible');
+  }
 }
 
 async function submitRequest() {
