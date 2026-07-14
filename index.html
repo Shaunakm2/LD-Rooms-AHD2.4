@@ -795,6 +795,24 @@
     color: var(--text);
     box-shadow: 0 1px 3px rgba(0,0,0,0.08);
   }
+  .tl-nav-btn {
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    padding: 0;
+  }
+  .tl-nav-btn:hover { background: var(--surface2); color: var(--text); }
 
   /* TODAY'S TIMELINE */
   .timeline-section {
@@ -1017,12 +1035,17 @@
         <span id="timeline-toggle-icon" style="font-size:12px;color:var(--text-muted);transition:transform 0.2s;transform:rotate(0deg)">▼</span>
       </div>
       <div class="timeline-controls" style="display:flex;align-items:center;gap:12px;">
+        <button class="tl-nav-btn" onclick="shiftTimelineDay(-1)" title="Previous day" aria-label="Previous day">‹</button>
         <div class="timeline-day-tabs" id="timeline-day-tabs">
-          <button class="tl-tab" onclick="setTimelineDay('yesterday',event)">Yesterday</button>
+          <button class="tl-tab" id="tl-tab-yesterday" onclick="setTimelineDay('yesterday',event)">Yesterday</button>
           <button class="tl-tab tl-tab-active" id="tl-tab-today" onclick="setTimelineDay('today',event)">Today</button>
-          <button class="tl-tab" onclick="setTimelineDay('tomorrow',event)">Tomorrow</button>
-          <input type="date" id="tl-custom-date" class="tl-tab" style="padding:4px 8px;font-size:12px;cursor:pointer;min-width:118px;flex-shrink:0;" onchange="setTimelineDay('custom',event)" title="Pick a date">
+          <button class="tl-tab" id="tl-tab-tomorrow" onclick="setTimelineDay('tomorrow',event)">Tomorrow</button>
+          <div class="tl-tab" id="tl-date-wrap" style="display:inline-flex;align-items:center;gap:5px;padding:4px 8px;flex-shrink:0;">
+            <span aria-hidden="true" style="font-size:12px;cursor:pointer;" onclick="const el=document.getElementById('tl-custom-date'); if(el.showPicker){el.showPicker();}else{el.focus();}">📅</span>
+            <input type="date" id="tl-custom-date" onchange="setTimelineDay('custom',event)" title="Pick a date" style="border:none;background:transparent;padding:0;margin:0;font-size:12px;font-family:inherit;color:inherit;cursor:pointer;width:88px;flex-shrink:0;">
+          </div>
         </div>
+        <button class="tl-nav-btn" onclick="shiftTimelineDay(1)" title="Next day" aria-label="Next day">›</button>
         <select id="floor-filter" onchange="renderStatusGrid();renderTimeline();" style="padding:4px 10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);font-size:12px;outline:none;">
           <option value="">All Floors</option>
           <option value="2nd Floor">2nd Floor</option>
@@ -1161,6 +1184,10 @@
             <option value="room-desc">Room (Z–A)</option>
             <option value="status-asc">Status (A–Z)</option>
           </select>
+          <label style="display:flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);font-size:14px;cursor:pointer;white-space:nowrap;user-select:none;">
+            <input type="checkbox" id="filter-conflicts-only" onchange="_tablePage=0;renderTable()" style="accent-color:var(--danger);width:15px;height:15px;cursor:pointer;">
+            ⚠️ Conflicts only
+          </label>
           <button class="btn btn-ghost" onclick="exportExcel()" style="white-space:nowrap">&#8595; Export Excel</button>
         </div>
       </div>
@@ -1460,11 +1487,14 @@ async function loadData(silent = false) {
         endDate: cleanDate(r.EndDate || '')
       };
     });
-    // Sort by creation time (embedded in BookingID as 'b' + timestamp + random)
+    // Sort by creation time (embedded in BookingID as 'b' + timestamp + random).
+    // String comparison, not parseInt — see note in renderTable()'s sort for why
+    // parseInt without a radix silently fails on every real ID here (they start
+    // with a letter), which made this a complete no-op previously.
     bookings.sort((a, b) => {
-      const ta = parseInt((a.id || '').replace(/^b/, '')) || 0;
-      const tb = parseInt((b.id || '').replace(/^b/, '')) || 0;
-      return tb - ta; // newest created first
+      const ta = a.id || '';
+      const tb = b.id || '';
+      return tb > ta ? 1 : (tb < ta ? -1 : 0); // newest created first
     });
   } catch(e) {
     console.error('Load error', e);
@@ -1638,18 +1668,60 @@ function bookingSpans(b) {
 
 // Finds a conflicting booking for room/date/start/end, considering overnight spans
 function findConflict(room, date, start, end, excludeId) {
+  return findAllConflicts(room, date, start, end, excludeId)[0] || null;
+}
+
+// Computes conflicts for an EXISTING booking, live, against current data —
+// used by admin views (pending list, all-bookings table) so the warning is
+// always accurate right now and disappears automatically the moment the
+// conflicting booking is deleted/cancelled/rejected. Never stored, never stale.
+function getLiveConflicts(b) {
+  return findAllConflicts(b.room, b.date, b.start, b.end, b.id);
+}
+
+function describeConflict(c) {
+  const isPending = c.status === 'Pending';
+  const statusLabel = isPending ? 'a pending request' : 'a confirmed booking';
+  return `${statusLabel} ${fmtTime(c.start)}–${fmtTime(c.end)} by ${c.booker} on ${fmtDate(c.date)}`;
+}
+
+function formatLiveConflictNote(conflicts) {
+  if (conflicts.length === 0) return '';
+  if (conflicts.length === 1) return `⚠️ Overlap: ${describeConflict(conflicts[0])}`;
+  return `⚠️ ${conflicts.length} overlaps: ` + conflicts.map(describeConflict).join('; ');
+}
+
+// Strips legacy conflict notes that older versions of this app baked directly
+// into the Purpose field (before conflict detection became live-computed at
+// render time). Old format always ends the string with "[⚠️ Overlap: ...]" or
+// "[⚠️ N overlaps: ...]". Only affects DISPLAY — never touches stored data,
+// so old bookings won't show stale conflict text anywhere it's shown to a
+// user, while the actual live conflict badge (computed separately) stays accurate.
+function displayPurpose(purpose) {
+  if (!purpose) return purpose;
+  return purpose.replace(/\s*\[⚠️[^\]]*\]\s*$/, '');
+}
+
+// Returns EVERY overlapping booking for this room/date/time, not just the
+// first one found — a single slot can have more than one conflicting request
+// (e.g. two different pending requests both overlapping the same confirmed booking).
+function findAllConflicts(room, date, start, end, excludeId) {
   const newSpans = bookingSpans({ date, start, end });
+  const found = [];
   for (const b of bookings) {
     if (b.room !== room) continue;
     if (excludeId && b.id === excludeId) continue;
     if (b.status === 'Rejected' || b.status === 'Cancelled') continue;
+    let overlaps = false;
     for (const ex of bookingSpans(b)) {
       for (const ns of newSpans) {
-        if (ex.date === ns.date && ns.start < ex.end && ns.end > ex.start) return b;
+        if (ex.date === ns.date && ns.start < ex.end && ns.end > ex.start) { overlaps = true; break; }
       }
+      if (overlaps) break;
     }
+    if (overlaps) found.push(b); // each conflicting booking added once, even if it has multiple overlapping spans (e.g. overnight)
   }
-  return null;
+  return found;
 }
 
 // 'active' | 'past' | 'upcoming' relative to now, handling overnight spans
@@ -1800,7 +1872,7 @@ function renderStatusGrid() {
       const nb = nextBookings[0];
       bodyHtml += `<div class="next-booking-note">
         Next: <strong>${escHtml(nb.booker)}</strong> at ${fmtTime(nb.start)}
-        ${nb.purpose ? '&mdash; ' + escHtml(nb.purpose) : ''}
+        ${nb.purpose ? '&mdash; ' + escHtml(displayPurpose(nb.purpose)) : ''}
       </div>`;
     }
 
@@ -1844,11 +1916,13 @@ function renderTable() {
   const search = document.getElementById('search-input').value.toLowerCase().trim();
   const filterRoom = document.getElementById('filter-room').value;
   const filterDate = document.getElementById('filter-date').value;
+  const conflictsOnly = document.getElementById('filter-conflicts-only')?.checked;
   const today = todayStr();
   // Preserve current selection across re-render
   const prevSelected = new Set(getSelectedIds());
 
   let filtered = [...bookings];
+  if (conflictsOnly) filtered = filtered.filter(b => (b.status === 'Pending' || b.status === 'Confirmed') && getLiveConflicts(b).length > 0);
   if (search) {
     filtered = filtered.filter(b =>
       b.booker.toLowerCase().includes(search) ||
@@ -1872,9 +1946,16 @@ function renderTable() {
       va = (a.status || '').toLowerCase();
       vb = (b.status || '').toLowerCase();
     } else {
-      // creation time: extract timestamp from BookingID
-      va = parseInt((a.id || '').replace(/^b/, '')) || 0;
-      vb = parseInt((b.id || '').replace(/^b/, '')) || 0;
+      // Creation time, encoded in BookingID as 'b' + base36 timestamp + random suffix.
+      // IMPORTANT: compare the ID as a STRING, not parseInt(id) — the timestamp
+      // portion contains letters (base36), so parseInt with no radix defaults to
+      // base 10 and fails immediately on the first letter, returning NaN -> 0 for
+      // every single row. That made this sort a complete no-op previously (every
+      // row got the same sort key of 0). String comparison works correctly here
+      // because every ID has the same fixed-width structure, so lexicographic
+      // ordering exactly matches chronological order — no parsing needed at all.
+      va = a.id || '';
+      vb = b.id || '';
     }
     if (va < vb) return _sortDir === 'asc' ? -1 : 1;
     if (va > vb) return _sortDir === 'asc' ? 1 : -1;
@@ -1913,11 +1994,15 @@ function renderTable() {
       else statusBadge = `<span class="status-badge badge-free">Upcoming</span>`;
     }
     const overnightTag = isOvernight(b) ? ' <span style="font-size:10px;color:var(--text-faint);font-weight:600">+1 day</span>' : '';
+    const liveConflicts = (b.status === 'Pending' || b.status === 'Confirmed') ? getLiveConflicts(b) : [];
+    const conflictNote = liveConflicts.length > 0
+      ? `<div style="color:var(--danger);font-size:11px;font-weight:500;margin-top:3px;">${escHtml(formatLiveConflictNote(liveConflicts))}</div>`
+      : '';
     html += `<tr>
       <td class="cb-cell"><input type="checkbox" class="booking-cb row-cb" data-id="${b.id}" onchange="onRowCbChange()" title="Select"></td>
       <td class="td-room">${escHtml(roomName(b.room))}</td>
       <td>${escHtml(b.booker)}</td>
-      <td style="color:var(--text-muted)">${escHtml(b.purpose || '—')}</td>
+      <td style="color:var(--text-muted)">${escHtml(displayPurpose(b.purpose) || '—')}${conflictNote}</td>
       <td>${fmtDate(b.date)}</td>
       <td style="white-space:nowrap">${fmtTime(b.start)} – ${fmtTime(b.end)}${overnightTag}</td>
       <td>${b.attendees || '—'}</td>
@@ -2021,7 +2106,7 @@ function editBooking(id) {
   document.getElementById('edit-id').value = b.id;
   document.getElementById('f-room').value = b.room;
   document.getElementById('f-booker').value = b.booker;
-  document.getElementById('f-purpose').value = b.purpose || '';
+  document.getElementById('f-purpose').value = displayPurpose(b.purpose) || '';
   document.getElementById('f-date').value = b.date;
   document.getElementById('f-start').value = b.start;
   document.getElementById('f-end').value = b.end;
@@ -2450,30 +2535,27 @@ async function submitRequest() {
     errEl.classList.add('visible'); return;
   }
 
-  // Conflict check — warn requester but still allow submission
-  // Admin sees the conflict note when reviewing
-  const conflictWarnings = [];
+  // Conflict check — used only for the one-time confirmation notice shown to
+  // the requester right after submitting. NOT stored anywhere — admin views
+  // compute conflicts live at render time instead (see renderPendingRequests /
+  // renderTable), so the warning always reflects current reality and
+  // automatically disappears once the conflicting booking is deleted/cancelled,
+  // rather than being frozen as stale text forever.
+  const conflictByDate = {};
   for (const d of dates) {
-    const conflict = findConflict(room, d, start, end, null);
-    if (conflict) conflictWarnings.push({ date: d, conflict });
+    const conflicts = findAllConflicts(room, d, start, end, null);
+    if (conflicts.length > 0) conflictByDate[d] = conflicts;
   }
-
-  // If conflicts found, append a note to purpose so admin sees it in pending list
-  let finalPurpose = purpose;
-  let hasConflict = conflictWarnings.length > 0;
-  if (hasConflict) {
-    const first = conflictWarnings[0];
-    const isPending = first.conflict.status === 'Pending';
-    const statusLabel = isPending ? 'a pending request' : 'a confirmed booking';
-    finalPurpose = purpose + ` [⚠️ Overlap: ${roomName(room)} has ${statusLabel} ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} by ${first.conflict.booker} on ${fmtDate(first.date)}]`;
-  }
+  const conflictDates = Object.keys(conflictByDate);
+  const hasConflict = conflictDates.length > 0;
+  const totalConflictCount = conflictDates.reduce((sum, d) => sum + conflictByDate[d].length, 0);
 
   try {
     showLoadingOverlay(true);
     reqSubmitting = true;
     const newBookings = dates.map(d => {
       const computedEndDate = minutesSinceMidnight(end) < minutesSinceMidnight(start) ? addDaysStr(d, 1) : d;
-      return { id: genId(), room, booker, purpose: finalPurpose, date: d, start, end, attendees: attendees || '', status: 'Pending', endDate: computedEndDate };
+      return { id: genId(), room, booker, purpose, date: d, start, end, attendees: attendees || '', status: 'Pending', endDate: computedEndDate };
     });
     await apiCreateRequestBatch(newBookings);
     newBookings.forEach(b => bookings.push(b));
@@ -2484,11 +2566,13 @@ async function submitRequest() {
     // Show conflict notice on confirmation screen if overlaps detected
     const noticeEl = document.getElementById('req-conflict-notice');
     if (hasConflict && noticeEl) {
-      const first = conflictWarnings[0];
-      const isPending = first.conflict.status === 'Pending';
+      const firstDate = conflictDates[0];
+      const first = conflictByDate[firstDate][0];
+      const isPending = first.status === 'Pending';
       const statusLabel = isPending ? 'a pending request' : 'a confirmed booking';
+      const dayCountNote = conflictDates.length > 1 ? ` — ${conflictDates.length} of ${dates.length} days affected (${totalConflictCount} overlapping booking(s) total)` : (totalConflictCount > 1 ? ` — ${totalConflictCount} overlapping bookings that day` : '');
       noticeEl.style.display = '';
-      noticeEl.innerHTML = `⚠️ <strong>Note:</strong> ${roomName(room)} already has ${statusLabel} from ${fmtTime(first.conflict.start)}–${fmtTime(first.conflict.end)} on ${fmtDate(first.date)} by ${first.conflict.booker}. Your request has been submitted — please check with the admin for confirmation.`;
+      noticeEl.innerHTML = `⚠️ <strong>Note:</strong> ${roomName(room)} already has ${statusLabel} from ${fmtTime(first.start)}–${fmtTime(first.end)} on ${fmtDate(conflictDates[0])} by ${first.booker}${dayCountNote}. Your request has been submitted — please check with the admin for confirmation.`;
     } else if (noticeEl) {
       noticeEl.style.display = 'none';
     }
@@ -2524,15 +2608,21 @@ function renderPendingRequests() {
   section.style.display = '';
   updatePendingDot();
 
-  list.innerHTML = pending.sort((a,b) => (a.date+a.start) < (b.date+b.start) ? -1 : 1).map(b => `
+  list.innerHTML = pending.sort((a,b) => (a.date+a.start) < (b.date+b.start) ? -1 : 1).map(b => {
+    const liveConflicts = getLiveConflicts(b);
+    const conflictNote = liveConflicts.length > 0
+      ? `<div class="pending-meta" style="color:var(--danger);font-weight:500;margin-top:2px;">${escHtml(formatLiveConflictNote(liveConflicts))}</div>`
+      : '';
+    return `
     <div class="pending-item" id="pending-item-${b.id}">
       <div class="pending-item-top">
         <div style="display:flex;align-items:flex-start;gap:10px;">
           <input type="checkbox" class="booking-cb pending-cb" data-id="${b.id}" onchange="onPendingCbChange()" style="margin-top:3px;accent-color:var(--warn);width:15px;height:15px;cursor:pointer;flex-shrink:0;">
           <div>
             <div class="pending-room-name">${escHtml(roomName(b.room))}</div>
-            <div class="pending-meta">${escHtml(b.booker)}${b.purpose ? ' &middot; ' + escHtml(b.purpose) : ''}</div>
+            <div class="pending-meta">${escHtml(b.booker)}${b.purpose ? ' &middot; ' + escHtml(displayPurpose(b.purpose)) : ''}</div>
             <div class="pending-meta">${fmtDate(b.date)} &middot; ${fmtTime(b.start)} – ${fmtTime(b.end)}${b.attendees ? ' &middot; ' + b.attendees + ' attendees' : ''}</div>
+            ${conflictNote}
           </div>
         </div>
       </div>
@@ -2559,7 +2649,8 @@ function renderPendingRequests() {
         </div>
       </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function toggleModifyForm(id) {
@@ -2943,7 +3034,7 @@ function openSchedModal(roomId) {
           '<div class="sched-slot-time">' + fmtTime(b.start) + ' – ' + fmtTime(b.end) + overnightNote + '</div>' +
           '<div class="sched-slot-info">' +
             '<div class="sched-slot-booker">' + escHtml(b.booker) + '</div>' +
-            (b.purpose ? '<div class="sched-slot-purpose">' + escHtml(b.purpose) + (b.attendees ? ' &middot; ' + b.attendees + ' attendees' : '') + '</div>' : '') +
+            (b.purpose ? '<div class="sched-slot-purpose">' + escHtml(displayPurpose(b.purpose)) + (b.attendees ? ' &middot; ' + b.attendees + ' attendees' : '') + '</div>' : '') +
           '</div></div>' +
           (!isPast ? '<button class="btn btn-danger btn-sm" style="flex-shrink:0;font-size:11px;padding:4px 10px" onclick="event.stopPropagation();openCancelModal(\'' + b.id + '\')" title="Cancel this booking">Cancel</button>' : '') +
         '</div>';
@@ -3120,7 +3211,7 @@ function openCancelModal(bookingId) {
   document.getElementById('cancel-booking-card').innerHTML =
     '<div class="room-name">' + escHtml(roomName(b.room)) + '</div>' +
     '<div class="meta">' + fmtDate(b.date) + ' &middot; ' + fmtTime(b.start) + ' – ' + fmtTime(b.end) +
-    (b.purpose ? ' &middot; ' + escHtml(b.purpose) : '') + '</div>';
+    (b.purpose ? ' &middot; ' + escHtml(displayPurpose(b.purpose)) : '') + '</div>';
   document.getElementById('cancel-name-input').value = '';
   document.getElementById('cancel-error').classList.remove('visible');
   // Close schedule modal first, then open cancel modal
@@ -3170,6 +3261,17 @@ async function confirmCancelBooking() {
 
 
 
+function getTimelineTargetDate() {
+  const today = todayStr();
+  if (timelineDay === 'yesterday') return addDaysStr(today, -1);
+  if (timelineDay === 'tomorrow') return addDaysStr(today, 1);
+  if (timelineDay === 'custom') {
+    const cv = document.getElementById('tl-custom-date')?.value;
+    return cv || today;
+  }
+  return today;
+}
+
 function renderTimeline() {
   const container = document.getElementById('tl-bar-inner');
   if (!container) return;
@@ -3178,15 +3280,7 @@ function renderTimeline() {
   const now = nowMinutes();
   const DAY_MINS = 1440;
 
-  let targetDate;
-  if (timelineDay === 'yesterday') targetDate = addDaysStr(today, -1);
-  else if (timelineDay === 'tomorrow') targetDate = addDaysStr(today, 1);
-  else if (timelineDay === 'custom') {
-    const cv = document.getElementById('tl-custom-date')?.value;
-    targetDate = cv || today;
-  } else {
-    targetDate = today;
-  }
+  const targetDate = getTimelineTargetDate();
   const isToday = targetDate === today;
 
   // Hour tick ruler (every 2 hours for readability)
@@ -3232,7 +3326,7 @@ function renderTimeline() {
           style="left:${leftPct.toFixed(3)}%;width:${widthPct.toFixed(3)}%"
           data-booker="${escHtml(b.booker)}"
           data-time="${startFmt}–${endFmt}"
-          data-purpose="${escHtml(b.purpose || '')}"
+          data-purpose="${escHtml(displayPurpose(b.purpose) || '')}"
           data-att="${escHtml(b.attendees || '')}"
           onmouseenter="showTlTooltip(event,this)"
           onmouseleave="hideTlTooltip()"
@@ -3286,6 +3380,41 @@ function setTimelineDay(day, event) {
   timelineDay = day;
   document.querySelectorAll('.tl-tab').forEach(t => t.classList.remove('tl-tab-active'));
   if (day !== 'custom' && event && event.target) event.target.classList.add('tl-tab-active');
+  const wrap = document.getElementById('timeline-wrap');
+  const icon = document.getElementById('timeline-toggle-icon');
+  if (wrap.style.display === 'none') {
+    wrap.style.display = 'block';
+    icon.style.transform = 'rotate(0deg)';
+  }
+  renderTimeline();
+}
+
+// Previous/Next buttons — shift relative to whichever date is CURRENTLY shown
+// (not always relative to today), so repeated clicks keep walking forward/back
+// one day at a time from wherever the user currently is.
+function shiftTimelineDay(delta) {
+  const current = getTimelineTargetDate();
+  const newDate = addDaysStr(current, delta);
+  const today = todayStr();
+  const yestStr = addDaysStr(today, -1);
+  const tomStr = addDaysStr(today, 1);
+
+  document.querySelectorAll('.tl-tab').forEach(t => t.classList.remove('tl-tab-active'));
+  document.getElementById('tl-custom-date').value = newDate;
+
+  if (newDate === yestStr) {
+    timelineDay = 'yesterday';
+    document.getElementById('tl-tab-yesterday')?.classList.add('tl-tab-active');
+  } else if (newDate === today) {
+    timelineDay = 'today';
+    document.getElementById('tl-tab-today')?.classList.add('tl-tab-active');
+  } else if (newDate === tomStr) {
+    timelineDay = 'tomorrow';
+    document.getElementById('tl-tab-tomorrow')?.classList.add('tl-tab-active');
+  } else {
+    timelineDay = 'custom';
+  }
+
   const wrap = document.getElementById('timeline-wrap');
   const icon = document.getElementById('timeline-toggle-icon');
   if (wrap.style.display === 'none') {
