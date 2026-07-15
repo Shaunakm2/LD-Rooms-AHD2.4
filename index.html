@@ -1403,7 +1403,7 @@ let _sortDir = 'desc'; // 'asc' | 'desc'
 const PAGE_SIZE = 15; // bookings per page in admin table
 
 // ===== STORAGE =====
-const API_URL = 'https://script.google.com/macros/s/AKfycbywKoOiVc2bOfg6sVgt9bzaIyMbFrMjdBHvaCmwO89f-uyFFGhxcRZ-scsZm-PiWp3dbQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyNtovF-0gWVS_FA-mWLAgIGejewOUuqrWuU4HegfwCCwd_KAZO45M0QnHC44Io-wm8Bg/exec';
 
 async function loadData(silent = false) {
   // Don't overwrite local state with stale sheet data right after a write.
@@ -1484,7 +1484,9 @@ async function loadData(silent = false) {
         end: cleanTime(r.EndTime),
         attendees: String(r.Attendees || '').trim(),
         status: String(r.Status || 'Confirmed').trim(),
-        endDate: cleanDate(r.EndDate || '')
+        endDate: cleanDate(r.EndDate || ''),
+        conflictResolved: String(r.ConflictResolved || '').trim() === 'Yes',
+        conflictNote: String(r.ConflictNote || '').trim()
       };
     });
     // Sort by creation time (embedded in BookingID as 'b' + timestamp + random).
@@ -1536,6 +1538,10 @@ async function apiCreate(b) {
 
 async function apiUpdateStatus(id, status) {
   await apiPost({ action: 'updateStatus', BookingID: id, Status: status });
+}
+
+async function apiSetConflictResolved(id, resolved, note) {
+  await apiPost({ action: 'setConflictResolved', BookingID: id, Resolved: resolved, Note: note || '' });
 }
 
 // Batch variants — used for recurring bookings and bulk admin actions so the
@@ -1702,6 +1708,52 @@ function displayPurpose(purpose) {
   return purpose.replace(/\s*\[⚠️[^\]]*\]\s*$/, '');
 }
 
+// Marks a conflict resolved (with an admin note describing how) or undoes it.
+// Saved permanently in the sheet — ConflictResolved + ConflictNote columns —
+// visible to every admin on every device, and shown on the public room cards too.
+async function toggleConflictResolved(bookingId) {
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return;
+
+  if (b.conflictResolved) {
+    // Undo — restore the warning, clear the note
+    const prevNote = b.conflictNote;
+    b.conflictResolved = false;
+    b.conflictNote = '';
+    renderPendingRequests(); renderTable(); renderStatusGrid();
+    try {
+      await apiSetConflictResolved(bookingId, false, '');
+      toast('Conflict warning restored.');
+    } catch(e) {
+      b.conflictResolved = true; b.conflictNote = prevNote;
+      renderPendingRequests(); renderTable(); renderStatusGrid();
+      toast('Could not update — check connection.', true);
+    }
+    return;
+  }
+
+  // Marking resolved — show exactly which bookings conflict, ask for a note
+  const liveConflicts = getLiveConflicts(b);
+  const thisOne = `${b.booker}, ${fmtTime(b.start)}–${fmtTime(b.end)} on ${fmtDate(b.date)}`;
+  const otherOnes = liveConflicts.map(c => `${c.booker}, ${fmtTime(c.start)}–${fmtTime(c.end)} on ${fmtDate(c.date)} (${c.status})`).join('\n');
+  const promptText = `Resolving conflict for:\n  ${thisOne}\nagainst:\n  ${otherOnes}\n\nAdd a note (shown on room cards + admin view):`;
+  const note = prompt(promptText, b.conflictNote || '');
+  if (note === null) return; // cancelled
+
+  const trimmedNote = note.trim();
+  b.conflictResolved = true;
+  b.conflictNote = trimmedNote;
+  renderPendingRequests(); renderTable(); renderStatusGrid();
+  try {
+    await apiSetConflictResolved(bookingId, true, trimmedNote);
+    toast('Marked as resolved.');
+  } catch(e) {
+    b.conflictResolved = false; b.conflictNote = '';
+    renderPendingRequests(); renderTable(); renderStatusGrid();
+    toast('Could not update — check connection.', true);
+  }
+}
+
 // Returns EVERY overlapping booking for this room/date/time, not just the
 // first one found — a single slot can have more than one conflicting request
 // (e.g. two different pending requests both overlapping the same confirmed booking).
@@ -1851,6 +1903,12 @@ function renderStatusGrid() {
           <span>${escHtml(displayPurpose(booking.purpose))}</span>
         </div>`;
       }
+      if (booking.conflictResolved && booking.conflictNote) {
+        bodyHtml += `<div class="room-info-row" style="color:var(--text-muted);font-size:12px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span>${escHtml(booking.conflictNote)}</span>
+        </div>`;
+      }
       bodyHtml += `<div class="room-info-row">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span>Free at <strong>${freeAt}</strong> &mdash; ${mins} min remaining</span>
@@ -1995,9 +2053,18 @@ function renderTable() {
     }
     const overnightTag = isOvernight(b) ? ' <span style="font-size:10px;color:var(--text-faint);font-weight:600">+1 day</span>' : '';
     const liveConflicts = (b.status === 'Pending' || b.status === 'Confirmed') ? getLiveConflicts(b) : [];
-    const conflictNote = liveConflicts.length > 0
-      ? `<div style="color:var(--danger);font-size:11px;font-weight:500;margin-top:3px;">${escHtml(formatLiveConflictNote(liveConflicts))}</div>`
-      : '';
+    let conflictNote = '';
+    if (liveConflicts.length > 0 && b.conflictResolved) {
+      conflictNote = `<div style="color:var(--text-muted);font-size:11px;margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        ✓ Resolved${b.conflictNote ? ': ' + escHtml(b.conflictNote) : ''}
+        <button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:10px;" onclick="toggleConflictResolved('${b.id}')">Undo</button>
+      </div>`;
+    } else if (liveConflicts.length > 0) {
+      conflictNote = `<div style="color:var(--danger);font-size:11px;font-weight:500;margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        <span>${escHtml(formatLiveConflictNote(liveConflicts))}</span>
+        <button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:10px;flex-shrink:0;" onclick="toggleConflictResolved('${b.id}')">Mark Resolved</button>
+      </div>`;
+    }
     html += `<tr>
       <td class="cb-cell"><input type="checkbox" class="booking-cb row-cb" data-id="${b.id}" onchange="onRowCbChange()" title="Select"></td>
       <td class="td-room">${escHtml(roomName(b.room))}</td>
@@ -2610,9 +2677,18 @@ function renderPendingRequests() {
 
   list.innerHTML = pending.sort((a,b) => (a.date+a.start) < (b.date+b.start) ? -1 : 1).map(b => {
     const liveConflicts = getLiveConflicts(b);
-    const conflictNote = liveConflicts.length > 0
-      ? `<div class="pending-meta" style="color:var(--danger);font-weight:500;margin-top:2px;">${escHtml(formatLiveConflictNote(liveConflicts))}</div>`
-      : '';
+    let conflictNote = '';
+    if (liveConflicts.length > 0 && b.conflictResolved) {
+      conflictNote = `<div class="pending-meta" style="color:var(--text-muted);margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        ✓ Resolved${b.conflictNote ? ': ' + escHtml(b.conflictNote) : ''}
+        <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;" onclick="toggleConflictResolved('${b.id}')">Undo</button>
+      </div>`;
+    } else if (liveConflicts.length > 0) {
+      conflictNote = `<div class="pending-meta" style="color:var(--danger);font-weight:500;margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span>${escHtml(formatLiveConflictNote(liveConflicts))}</span>
+        <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;flex-shrink:0;" onclick="toggleConflictResolved('${b.id}')">Mark Resolved</button>
+      </div>`;
+    }
     return `
     <div class="pending-item" id="pending-item-${b.id}">
       <div class="pending-item-top">
