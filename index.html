@@ -561,6 +561,22 @@
     display: block;
   }
   .btn-request:hover { background: #D0E8E0; }
+  .btn-release-early {
+    margin-top: 8px;
+    width: 100%;
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    background: none;
+    color: var(--text-muted);
+    border: 1px dashed var(--border);
+    transition: all 0.15s;
+    display: block;
+  }
+  .btn-release-early:hover { background: var(--surface2); color: var(--text); border-color: var(--text-faint); }
 
   /* REQUEST MODAL */
   .modal-box-lg {
@@ -1329,6 +1345,22 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="resolve-conflict-modal" style="display:none;" onclick="if(event.target===this)closeResolveConflictModal()">
+  <div class="modal-box">
+    <div class="modal-title">Resolve Conflict</div>
+    <div class="modal-sub">Describe how this was handled — shown on room cards and the admin view.</div>
+    <div id="resolve-conflict-details" style="font-size:12.5px;color:var(--text-muted);background:var(--surface2);border-radius:var(--radius);padding:10px 12px;margin:12px 0;line-height:1.6;white-space:pre-line;"></div>
+    <div class="form-group" style="margin-top:0.5rem">
+      <label>Note (optional)</label>
+      <input type="text" id="resolve-conflict-note" placeholder="e.g. Confirmed with both — Varnica moved to Conf Room B" maxlength="200">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeResolveConflictModal()">Cancel</button>
+      <button class="btn btn-approve" onclick="confirmResolveConflict()">Mark Resolved</button>
+    </div>
+  </div>
+</div>
+
 <!-- DELETE CONFIRM MODAL -->
 <div class="modal-overlay" id="delete-modal" style="display:none;">
   <div class="modal-box">
@@ -1383,17 +1415,28 @@ const LOCKOUT_MS = 5 * 60 * 1000; // 5 minutes
 
 // Session timeout — 30 min inactivity
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+const SESSION_WARNING_MS = 5 * 60 * 1000; // warn 5 min before actual timeout
 let _lastActivityAt = Date.now();
-function _touchActivity() { _lastActivityAt = Date.now(); }
+let _sessionWarningShown = false;
+function _touchActivity() {
+  _lastActivityAt = Date.now();
+  _sessionWarningShown = false; // any activity resets the warning too, not just the timer
+}
 document.addEventListener('click', _touchActivity);
 document.addEventListener('keydown', _touchActivity);
 setInterval(() => {
-  if (adminLoggedIn && Date.now() - _lastActivityAt > SESSION_TIMEOUT_MS) {
+  if (!adminLoggedIn) return;
+  const idleFor = Date.now() - _lastActivityAt;
+  if (idleFor > SESSION_TIMEOUT_MS) {
     adminLoggedIn = false;
     _sessionToken = null;
+    _sessionWarningShown = false;
     document.getElementById('logout-btn').style.display = 'none';
     showPage('status');
     toast('Session expired. Please log in again.');
+  } else if (idleFor > SESSION_TIMEOUT_MS - SESSION_WARNING_MS && !_sessionWarningShown) {
+    _sessionWarningShown = true;
+    toast('Your session will expire in 5 minutes due to inactivity — click anywhere to stay logged in.', false, 7000);
   }
 }, 60000); // check every minute
 let _tablePage = 0;
@@ -1562,7 +1605,7 @@ async function apiUpdate(b) {
   const endDate = b.endDate || (isOvernight(b) ? addDaysStr(b.date, 1) : b.date);
   await apiPost({ action: 'delete', BookingID: b.id, silent: true });
   await new Promise(r => setTimeout(r, 1500));
-  await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed', EndDate: endDate, isUpdate: true });
+  await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose || '', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees || '', Status: b.status || 'Confirmed', EndDate: endDate, ConflictResolved: b.conflictResolved ? 'Yes' : '', ConflictNote: b.conflictNote || '', isUpdate: true });
 }
 
 async function apiDelete(id) {
@@ -1711,12 +1754,15 @@ function displayPurpose(purpose) {
 // Marks a conflict resolved (with an admin note describing how) or undoes it.
 // Saved permanently in the sheet — ConflictResolved + ConflictNote columns —
 // visible to every admin on every device, and shown on the public room cards too.
+let _resolveConflictBookingId = null;
+
 async function toggleConflictResolved(bookingId) {
   const b = bookings.find(x => x.id === bookingId);
   if (!b) return;
 
   if (b.conflictResolved) {
-    // Undo — restore the warning, clear the note
+    // Undo — restore the warning, clear the note. Immediate, no modal needed —
+    // this is a simple reversible action, same as other Undo buttons in the app.
     const prevNote = b.conflictNote;
     b.conflictResolved = false;
     b.conflictNote = '';
@@ -1732,15 +1778,29 @@ async function toggleConflictResolved(bookingId) {
     return;
   }
 
-  // Marking resolved — show exactly which bookings conflict, ask for a note
+  // Marking resolved — open the styled modal instead of a native browser prompt
+  _resolveConflictBookingId = bookingId;
   const liveConflicts = getLiveConflicts(b);
   const thisOne = `${b.booker}, ${fmtTime(b.start)}–${fmtTime(b.end)} on ${fmtDate(b.date)}`;
   const otherOnes = liveConflicts.map(c => `${c.booker}, ${fmtTime(c.start)}–${fmtTime(c.end)} on ${fmtDate(c.date)} (${c.status})`).join('\n');
-  const promptText = `Resolving conflict for:\n  ${thisOne}\nagainst:\n  ${otherOnes}\n\nAdd a note (shown on room cards + admin view):`;
-  const note = prompt(promptText, b.conflictNote || '');
-  if (note === null) return; // cancelled
+  document.getElementById('resolve-conflict-details').textContent = `Resolving conflict for:\n  ${thisOne}\nagainst:\n  ${otherOnes}`;
+  document.getElementById('resolve-conflict-note').value = b.conflictNote || '';
+  document.getElementById('resolve-conflict-modal').style.display = 'flex';
+}
 
-  const trimmedNote = note.trim();
+function closeResolveConflictModal() {
+  document.getElementById('resolve-conflict-modal').style.display = 'none';
+  _resolveConflictBookingId = null;
+}
+
+async function confirmResolveConflict() {
+  const bookingId = _resolveConflictBookingId;
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) { closeResolveConflictModal(); return; }
+
+  const trimmedNote = document.getElementById('resolve-conflict-note').value.trim();
+  closeResolveConflictModal();
+
   b.conflictResolved = true;
   b.conflictNote = trimmedNote;
   renderPendingRequests(); renderTable(); renderStatusGrid();
@@ -1915,6 +1975,7 @@ function renderStatusGrid() {
         </div>`;
       bodyHtml += `<div class="room-time-bar"><div class="room-time-fill ${barClass}" style="width:${pct}%"></div></div>`;
       bodyHtml += `<div class="room-time-label">${fmtTime(booking.start)} – ${fmtTime(booking.end)}</div>`;
+      bodyHtml += `<button class="btn-release-early" onclick="openReleaseModal('${booking.id}')">Release Room Now</button>`;
     } else {
       const nextToday = nextBookings[0];
       const freeUntilText = nextToday ? `Free until ${fmtTime(nextToday.start)}` : 'Free all day';
@@ -2131,11 +2192,41 @@ function renderActiveNow() {
     return;
   }
   el.innerHTML = active.map(b => `
-    <div class="booking-list-item active-now" onclick="editBooking('${b.id}')">
-      <div class="bli-room">${escHtml(roomName(b.room))}</div>
-      <div class="bli-meta">${escHtml(b.booker)} · until ${fmtTime(b.end)}</div>
+    <div class="booking-list-item active-now">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+        <div style="flex:1;cursor:pointer;" onclick="editBooking('${b.id}')">
+          <div class="bli-room">${escHtml(roomName(b.room))}</div>
+          <div class="bli-meta">${escHtml(b.booker)} · until ${fmtTime(b.end)}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="flex-shrink:0;" onclick="event.stopPropagation();adminReleaseEarly('${b.id}')">Release Now</button>
+      </div>
     </div>
   `).join('');
+}
+
+// Admin quick-action — no name verification needed (admin already authenticated).
+async function adminReleaseEarly(bookingId) {
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return;
+  if (!confirm(`Release ${roomName(b.room)} now? Booked by ${b.booker}, scheduled until ${fmtTime(b.end)}.`)) return;
+  if (bookingTimeStatus(b) !== 'active') {
+    toast('This booking is no longer active.', true);
+    return;
+  }
+  try {
+    showLoadingOverlay(true);
+    const now = new Date();
+    const nowHHMM = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    b.end = nowHHMM;
+    b.endDate = todayStr();
+    await apiUpdate(b);
+    toast('Room released — now available.');
+    renderStatusGrid(); renderActiveNow(); renderTable();
+  } catch(e) {
+    toast('Error — please try again.', true);
+  } finally {
+    showLoadingOverlay(false);
+  }
 }
 
 // ===== FORM =====
@@ -2480,13 +2571,17 @@ function showPage(name) {
 }
 
 // ===== TOAST =====
-function toast(msg, isErr) {
+function toast(msg, isErr, durationMs) {
   const c = document.getElementById('toast-container');
   const t = document.createElement('div');
   t.className = 'toast' + (isErr ? ' toast-err' : '');
   t.textContent = msg;
+  if (durationMs) {
+    const fadeStart = Math.max(0, (durationMs - 300) / 1000);
+    t.style.animation = `toastIn 0.2s ease, toastOut 0.3s ease ${fadeStart}s forwards`;
+  }
   c.appendChild(t);
-  setTimeout(() => t.remove(), 3100);
+  setTimeout(() => t.remove(), durationMs || 3100);
 }
 
 // ===== CLOCK =====
@@ -2675,7 +2770,15 @@ function renderPendingRequests() {
   section.style.display = '';
   updatePendingDot();
 
-  list.innerHTML = pending.sort((a,b) => (a.date+a.start) < (b.date+b.start) ? -1 : 1).map(b => {
+  const today = todayStr();
+  list.innerHTML = pending.sort((a,b) => {
+    // Expired (date already passed) requests sink to the bottom — they're no
+    // longer actionable and shouldn't bury requests that still need a decision.
+    const aExpired = a.date < today, bExpired = b.date < today;
+    if (aExpired !== bExpired) return aExpired ? 1 : -1;
+    return (a.date+a.start) < (b.date+b.start) ? -1 : 1;
+  }).map(b => {
+    const isExpired = b.date < today;
     const liveConflicts = getLiveConflicts(b);
     let conflictNote = '';
     if (liveConflicts.length > 0 && b.conflictResolved) {
@@ -2695,7 +2798,7 @@ function renderPendingRequests() {
         <div style="display:flex;align-items:flex-start;gap:10px;">
           <input type="checkbox" class="booking-cb pending-cb" data-id="${b.id}" onchange="onPendingCbChange()" style="margin-top:3px;accent-color:var(--warn);width:15px;height:15px;cursor:pointer;flex-shrink:0;">
           <div>
-            <div class="pending-room-name">${escHtml(roomName(b.room))}</div>
+            <div class="pending-room-name">${escHtml(roomName(b.room))}${isExpired ? ' <span style="font-size:11px;font-weight:600;color:var(--text-faint);background:var(--surface2);padding:2px 8px;border-radius:999px;vertical-align:middle;">⏰ Date passed</span>' : ''}</div>
             <div class="pending-meta">${escHtml(b.booker)}${b.purpose ? ' &middot; ' + escHtml(displayPurpose(b.purpose)) : ''}</div>
             <div class="pending-meta">${fmtDate(b.date)} &middot; ${fmtTime(b.start)} – ${fmtTime(b.end)}${b.attendees ? ' &middot; ' + b.attendees + ' attendees' : ''}</div>
             ${conflictNote}
@@ -2772,7 +2875,7 @@ async function modifyAndApprove(id) {
     await apiPost({ action: 'delete', BookingID: b.id, silent: true });
     await new Promise(r => setTimeout(r, 1500));
     const modEndDate = minutesSinceMidnight(b.end) < minutesSinceMidnight(b.start) ? addDaysStr(b.date, 1) : b.date;
-    await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed', EndDate: modEndDate, isUpdate: true });
+    await apiPost({ action: 'create', BookingID: b.id, Room: b.room, BookedBy: b.booker, Purpose: b.purpose||'', BookingDate: b.date, StartTime: b.start, EndTime: b.end, Attendees: b.attendees, Status: 'Confirmed', EndDate: modEndDate, ConflictResolved: b.conflictResolved ? 'Yes' : '', ConflictNote: b.conflictNote || '', isUpdate: true });
     toast('Booking modified & approved ✅');
   } catch(e) { toast('Error updating booking.', true); }
   finally { showLoadingOverlay(false); }
@@ -3044,6 +3147,7 @@ async function init() {
   renderStatusGrid();
   renderTimeline();
   setInterval(async () => {
+    if (document.hidden) return; // tab in background / screen off — skip this cycle entirely, no API call
     await loadData(true);
     updatePendingDot();
     // Only render the active page, skip timeline unless open
@@ -3058,6 +3162,19 @@ async function init() {
       renderPendingRequests();
     }
   }, 60000);
+
+  // When the tab becomes visible again after being backgrounded, refresh
+  // immediately (don't make the user wait up to 60s for stale data to catch up)
+  document.addEventListener('visibilitychange', async () => {
+    if (!document.hidden) {
+      await loadData(true);
+      updatePendingDot();
+      if (document.getElementById('page-status').classList.contains('active')) renderStatusGrid();
+      if (document.getElementById('page-admin').classList.contains('active')) {
+        renderTable(); renderActiveNow(); renderPendingRequests();
+      }
+    }
+  });
 
   // PWA install support — safe no-op in browsers without service worker support
   if ('serviceWorker' in navigator) {
@@ -3279,11 +3396,18 @@ async function confirmConflictResolution() {
 
 // ===== REQUESTER CANCELLATION =====
 let _cancelBookingId = null;
+let _cancelModalMode = 'cancel'; // 'cancel' or 'release'
 
 function openCancelModal(bookingId) {
   const b = bookings.find(x => x.id === bookingId);
   if (!b) return;
   _cancelBookingId = bookingId;
+  _cancelModalMode = 'cancel';
+  document.getElementById('cancel-modal-title').textContent = 'Cancel Your Booking';
+  document.getElementById('cancel-modal-sub').textContent = 'Enter your name to verify and cancel your booking.';
+  const confirmBtn = document.getElementById('cancel-modal-confirm-btn');
+  confirmBtn.textContent = 'Cancel My Booking';
+  confirmBtn.className = 'btn btn-danger';
   document.getElementById('cancel-booking-card').innerHTML =
     '<div class="room-name">' + escHtml(roomName(b.room)) + '</div>' +
     '<div class="meta">' + fmtDate(b.date) + ' &middot; ' + fmtTime(b.start) + ' – ' + fmtTime(b.end) +
@@ -3295,14 +3419,39 @@ function openCancelModal(bookingId) {
   document.getElementById('cancel-modal').style.display = 'flex';
 }
 
+// Same name-verification security model as cancel — but ends the booking NOW
+// instead of at its scheduled time, freeing the room immediately.
+function openReleaseModal(bookingId) {
+  const b = bookings.find(x => x.id === bookingId);
+  if (!b) return;
+  _cancelBookingId = bookingId;
+  _cancelModalMode = 'release';
+  document.getElementById('cancel-modal-title').textContent = 'Release Room Early';
+  document.getElementById('cancel-modal-sub').textContent = 'Enter your name to verify and free this room right now.';
+  const confirmBtn = document.getElementById('cancel-modal-confirm-btn');
+  confirmBtn.textContent = 'Release Room Now';
+  confirmBtn.className = 'btn btn-approve';
+  document.getElementById('cancel-booking-card').innerHTML =
+    '<div class="room-name">' + escHtml(roomName(b.room)) + '</div>' +
+    '<div class="meta">' + fmtDate(b.date) + ' &middot; ' + fmtTime(b.start) + ' – ' + fmtTime(b.end) +
+    (b.purpose ? ' &middot; ' + escHtml(displayPurpose(b.purpose)) : '') + '</div>';
+  document.getElementById('cancel-name-input').value = '';
+  document.getElementById('cancel-error').classList.remove('visible');
+  document.getElementById('cancel-modal').style.display = 'flex';
+}
+
 function closeCancelModal() {
   document.getElementById('cancel-modal').style.display = 'none';
   _cancelBookingId = null;
-  // Reopen schedule modal so user can continue browsing
-  document.getElementById('sched-modal').style.display = 'flex';
+  // Reopen schedule modal so user can continue browsing — only relevant for
+  // the cancel flow, which is always entered from within it. Release is
+  // opened directly from the room card, so there's nothing to return to.
+  if (_cancelModalMode === 'cancel') {
+    document.getElementById('sched-modal').style.display = 'flex';
+  }
 }
 
-async function confirmCancelBooking() {
+async function confirmCancelOrRelease() {
   const b = bookings.find(x => x.id === _cancelBookingId);
   if (!b) return;
   const entered = document.getElementById('cancel-name-input').value.trim().toLowerCase();
@@ -3314,21 +3463,39 @@ async function confirmCancelBooking() {
   document.getElementById('cancel-error').classList.remove('visible');
   try {
     showLoadingOverlay(true);
-    // Mark as Cancelled in sheet — keeps record
-    await apiPost({ action: 'cancel', BookingID: _cancelBookingId });
-    // Update local state to Cancelled (matches sheet) rather than removing
-    const idx = bookings.findIndex(x => x.id === _cancelBookingId);
-    if (idx !== -1) bookings[idx].status = 'Cancelled';
-    closeCancelModal();
-    closeSchedModal();
-    toast('Booking cancelled successfully.');
+    if (_cancelModalMode === 'release') {
+      if (bookingTimeStatus(b) !== 'active') {
+        toast('This booking is no longer active.', true);
+        closeCancelModal();
+        return;
+      }
+      // End the booking right now instead of at its scheduled time. Use the
+      // ACTUAL current date (not the booking's original date) for endDate —
+      // correct whether this is being released on its start day or, for an
+      // overnight booking, on its continuation day after midnight.
+      const now = new Date();
+      const nowHHMM = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+      b.end = nowHHMM;
+      b.endDate = todayStr();
+      await apiUpdate(b);
+      closeCancelModal();
+      toast('Room released — now available.');
+    } else {
+      // Mark as Cancelled in sheet — keeps record
+      await apiPost({ action: 'cancel', BookingID: _cancelBookingId });
+      const idx = bookings.findIndex(x => x.id === _cancelBookingId);
+      if (idx !== -1) bookings[idx].status = 'Cancelled';
+      closeCancelModal();
+      closeSchedModal();
+      toast('Booking cancelled successfully.');
+    }
     renderStatusGrid();
     updatePendingDot();
     if (document.getElementById('page-admin').classList.contains('active')) {
       renderTable(); renderActiveNow(); renderPendingRequests();
     }
   } catch(e) {
-    toast('Error cancelling. Try again.', true);
+    toast('Error — please try again.', true);
   } finally {
     showLoadingOverlay(false);
   }
@@ -3547,7 +3714,7 @@ function launchConfetti() {
 
 // ===== EXPORT EXCEL =====
 function exportExcel() {
-  const headers = ['Room','Floor','Booked By','Purpose','Date','Start Time','End Time','Attendees','Status'];
+  const headers = ['Room','Floor','Booked By','Purpose','Date','Start Time','End Time','Attendees','Status','Conflict Note'];
   const rows = [...bookings].sort((a,b) => {
     const da = a.date + a.start, db = b.date + b.start;
     return da < db ? -1 : da > db ? 1 : 0;
@@ -3565,12 +3732,13 @@ function exportExcel() {
       'Room': room.name || b.room,
       'Floor': room.floor || '',
       'Booked By': b.booker,
-      'Purpose': b.purpose || '',
+      'Purpose': displayPurpose(b.purpose) || '',
       'Date': b.date,
       'Start Time': fmtTime(b.start),
       'End Time': fmtTime(b.end),
       'Attendees': b.attendees || '',
-      'Status': status
+      'Status': status,
+      'Conflict Note': b.conflictResolved ? (b.conflictNote || '(resolved, no note)') : ''
     };
   });
   if (typeof XLSX === 'undefined') {
@@ -3578,7 +3746,7 @@ function exportExcel() {
     return;
   }
   const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
-  ws['!cols'] = [20,18,22,28,14,14,14,12,12].map(w => ({ wch: w }));
+  ws['!cols'] = [20,18,22,28,14,14,14,12,12,30].map(w => ({ wch: w }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Room Bookings');
   XLSX.writeFile(wb, 'room-bookings-' + todayStr() + '.xlsx');
@@ -3614,8 +3782,8 @@ if ('serviceWorker' in navigator) {
 <!-- CANCEL BOOKING MODAL -->
 <div class="modal-overlay modal-overlay-top" id="cancel-modal" style="display:none;" onclick="if(event.target===this)closeCancelModal()">
   <div class="cancel-modal-box">
-    <div class="modal-title">Cancel Your Booking</div>
-    <div class="modal-sub">Enter your name to verify and cancel your booking.</div>
+    <div class="modal-title" id="cancel-modal-title">Cancel Your Booking</div>
+    <div class="modal-sub" id="cancel-modal-sub">Enter your name to verify and cancel your booking.</div>
     <div id="cancel-booking-card" class="cancel-booking-card"></div>
     <div class="form-group">
       <label>Your Name (as booked)</label>
@@ -3624,7 +3792,7 @@ if ('serviceWorker' in navigator) {
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeCancelModal()">Back</button>
-      <button class="btn btn-danger" onclick="confirmCancelBooking()">Cancel My Booking</button>
+      <button class="btn btn-danger" id="cancel-modal-confirm-btn" onclick="confirmCancelOrRelease()">Cancel My Booking</button>
     </div>
   </div>
 </div>
