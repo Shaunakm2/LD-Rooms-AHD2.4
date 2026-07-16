@@ -1330,6 +1330,17 @@
 </div>
 
 <!-- REJECT MODAL -->
+<div class="modal-overlay modal-overlay-top" id="confirm-modal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title" id="confirm-modal-title">Please confirm</div>
+    <div class="modal-sub" id="confirm-modal-message" style="white-space:pre-line;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="_resolveConfirmModal(false)">Cancel</button>
+      <button class="btn btn-approve" id="confirm-modal-confirm-btn" onclick="_resolveConfirmModal(true)">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="reject-modal" style="display:none;">
   <div class="modal-box">
     <div class="modal-title">Reject Request?</div>
@@ -1788,6 +1799,26 @@ async function toggleConflictResolved(bookingId) {
   document.getElementById('resolve-conflict-modal').style.display = 'flex';
 }
 
+// Generic styled confirm modal — Promise-based so it drops in wherever native
+// confirm() was used: `if (!(await showConfirmModal('...'))) return;` works
+// exactly like `if (!confirm('...')) return;` did, just with the app's own
+// styling instead of the browser's native dialog chrome.
+let _confirmModalResolve = null;
+function showConfirmModal(message, confirmLabel, confirmClass) {
+  return new Promise(resolve => {
+    _confirmModalResolve = resolve;
+    document.getElementById('confirm-modal-message').textContent = message;
+    const btn = document.getElementById('confirm-modal-confirm-btn');
+    btn.textContent = confirmLabel || 'Confirm';
+    btn.className = 'btn ' + (confirmClass || 'btn-approve');
+    document.getElementById('confirm-modal').style.display = 'flex';
+  });
+}
+function _resolveConfirmModal(result) {
+  document.getElementById('confirm-modal').style.display = 'none';
+  if (_confirmModalResolve) { _confirmModalResolve(result); _confirmModalResolve = null; }
+}
+
 function closeResolveConflictModal() {
   document.getElementById('resolve-conflict-modal').style.display = 'none';
   _resolveConflictBookingId = null;
@@ -2208,7 +2239,7 @@ function renderActiveNow() {
 async function adminReleaseEarly(bookingId) {
   const b = bookings.find(x => x.id === bookingId);
   if (!b) return;
-  if (!confirm(`Release ${roomName(b.room)} now? Booked by ${b.booker}, scheduled until ${fmtTime(b.end)}.`)) return;
+  if (!(await showConfirmModal(`Release ${roomName(b.room)} now? Booked by ${b.booker}, scheduled until ${fmtTime(b.end)}.`, 'Release Now', 'btn-approve'))) return;
   if (bookingTimeStatus(b) !== 'active') {
     toast('This booking is no longer active.', true);
     return;
@@ -2844,7 +2875,7 @@ async function approvePending(id) {
   // Check conflict against all confirmed bookings (excluding self)
   const conflict = findConflict(b.room, b.date, b.start, b.end, id);
   if (conflict) {
-    if (!confirm(`⚠️ Conflict: ${roomName(b.room)} is already booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker} on ${fmtDate(conflict.date || b.date)}.\n\nApprove anyway?`)) return;
+    if (!(await showConfirmModal(`⚠️ Conflict: ${roomName(b.room)} is already booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker} on ${fmtDate(conflict.date || b.date)}.\n\nApprove anyway?`, 'Approve Anyway', 'btn-modify'))) return;
   }
   try {
     showLoadingOverlay(true);
@@ -2867,7 +2898,7 @@ async function modifyAndApprove(id) {
   if (!date || !start || !end) { toast('Please fill in all fields.', true); return; }
   if (minutesSinceMidnight(end) === minutesSinceMidnight(start)) { toast('Start and end time cannot be the same.', true); return; }
   const conflict = findConflict(room, date, start, end, id);
-  if (conflict) { if (!confirm(`⚠️ Conflict: ${roomName(room)} is booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.\n\nApprove anyway?`)) return; }
+  if (conflict) { if (!(await showConfirmModal(`⚠️ Conflict: ${roomName(room)} is booked ${fmtTime(conflict.start)}–${fmtTime(conflict.end)} by ${conflict.booker}.\n\nApprove anyway?`, 'Approve Anyway', 'btn-modify'))) return; }
   const b = { ...bookings[idx], room, date, start, end, attendees: attendees||'', status: 'Confirmed' };
   try {
     showLoadingOverlay(true);
@@ -2943,7 +2974,7 @@ function clearPendingSelection() {
 async function bulkApprovePending() {
   const ids = getPendingSelectedIds();
   if (ids.length === 0) return;
-  if (!confirm(`Approve ${ids.length} pending request(s)?`)) return;
+  if (!(await showConfirmModal(`Approve ${ids.length} pending request(s)?`, 'Approve All', 'btn-approve'))) return;
   showLoadingOverlay(true);
   let conflicted = 0;
   const toApprove = [];
@@ -2969,7 +3000,7 @@ async function bulkApprovePending() {
 async function bulkRejectPending() {
   const ids = getPendingSelectedIds();
   if (ids.length === 0) return;
-  if (!confirm(`Reject ${ids.length} pending request(s)? They will be marked Rejected.`)) return;
+  if (!(await showConfirmModal(`Reject ${ids.length} pending request(s)? They will be marked Rejected.`, 'Reject All', 'btn-danger'))) return;
   showLoadingOverlay(true);
   let rejected = 0;
   try {
@@ -3029,7 +3060,7 @@ function clearBulkSelection() {
 async function bulkApprove() {
   const ids = getSelectedIds();
   if (ids.length === 0) return;
-  if (!confirm(`Approve ${ids.length} booking(s)?`)) return;
+  if (!(await showConfirmModal(`Approve ${ids.length} booking(s)?`, 'Approve All', 'btn-approve'))) return;
   showLoadingOverlay(true);
   try {
     ids.forEach(id => {
@@ -3046,7 +3077,7 @@ async function bulkApprove() {
 async function bulkCancel() {
   const ids = getSelectedIds();
   if (ids.length === 0) return;
-  if (!confirm(`Cancel ${ids.length} booking(s)?`)) return;
+  if (!(await showConfirmModal(`Cancel ${ids.length} booking(s)?`, 'Cancel Bookings', 'btn-danger'))) return;
   showLoadingOverlay(true);
   try {
     for (const id of ids) {
@@ -3063,7 +3094,7 @@ async function bulkCancel() {
 async function bulkDelete() {
   const ids = getSelectedIds();
   if (ids.length === 0) return;
-  if (!confirm(`Permanently delete ${ids.length} booking(s)? This cannot be undone.`)) return;
+  if (!(await showConfirmModal(`Permanently delete ${ids.length} booking(s)? This cannot be undone.`, 'Delete Permanently', 'btn-danger'))) return;
   showLoadingOverlay(true);
   try {
     for (const id of ids) {
